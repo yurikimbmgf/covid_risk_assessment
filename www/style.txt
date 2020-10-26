@@ -1,0 +1,15 @@
+.row {
+    display: table;
+    width: 100%; /*Optional*/
+    table-layout: fixed; /*Optional*/
+    border-spacing: 10px; /*Optional*/
+}
+.columnleft {
+    display: table-cell;
+    width:300px;
+
+}
+.columnright {
+    display: table-cell;
+    width:700px;
+}

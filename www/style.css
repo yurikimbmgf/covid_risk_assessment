@@ -1,0 +1,62 @@
+.row {
+    display: table;
+    table-layout: fixed; /*Optional*/
+    border-spacing: 10px; /*Optional*/
+}
+.columnleft {
+    display: table-cell;
+    width:90px;
+}
+.columnright {
+    display: table-cell;
+    width:600px;
+}
+.spacer {height: 100px;}
+.column {
+	display: table-cell;
+	margin:0px;
+	padding:0px;
+	text-align: center;
+
+}
+
+.columnnotcentered {
+	display: table-cell;
+	margin-top:-30px;
+	padding-top:-30px;
+}
+
+
+.radioGroupButtons {margin-bottom: -10px; margin-top: -30px;}
+.questiontext {margin-left:10px;}
+
+.spacerleft {
+	display: table-cell;
+	padding:0px;
+	margin-left:20x;
+}
+.columnlabel {
+	display: table-cell;
+	margin:0px;
+	padding:0px;
+	font-size: 11px;
+	font-style: italic;
+	color: #878787;
+	text-align: center;
+}
+
+.rowquestion {
+    display: table;
+    table-layout: fixed; /*Optional*/
+    border-spacing: 10px; /*Optional*/
+	margin-bottom:25px;
+	margin-left:25px;
+}
+.rowquestionmask {
+    display: table;
+    table-layout: fixed; /*Optional*/
+    border-spacing: 10px; /*Optional*/
+	margin-bottom:25px;
+	margin-left:25px;
+	margin-top:-45px;
+}
