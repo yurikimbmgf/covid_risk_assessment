@@ -49,7 +49,6 @@ fieldsAll <- c("comfort_grocery",
                "feelings_spread",
                "feelings_precaution",
                "feelings_severity",
-               "about_state",
                "about_age",
                "about_gender",
                "about_job",
@@ -463,11 +462,21 @@ shinyApp(
     
     # Gather all the form inputs (and add timestamp)
     formData <- reactive({
-      data <- sapply(fieldsAll, function(x) input[[x]])
-      data <- c(data, timestamp = epochTime())
-      data <- t(data)
-      data
-    })    
+      # data <- sapply(fieldsAll, function(x) input[[x]]) 
+      data <- sapply(fieldsAll, function(x) input[[x]]) %>% as_data_frame()
+      data <- data %>%
+        pivot_longer(names_to = "names", values_to = "value", cols = everything()) %>% 
+        distinct() %>%
+        mutate(new_value = case_when(names == "behavior_mask" ~ "1", TRUE ~ value)) %>% 
+        mutate(names = case_when(names == "behavior_mask" ~ paste0("Mask Behavior: ", value),
+                                 TRUE ~ names)) %>% 
+        select(-value) %>% 
+        rename(value = new_value) %>% 
+        pivot_wider(names_from = "names", values_from = "value") %>% 
+        clean_names() %>% 
+        mutate_at(vars(matches("mask_behavior")), as.numeric) %>% 
+        bind_cols(tibble(timestamp = epochTime()))
+    })
     
     # When the Submit button is clicked, submit the response
     observeEvent(input$submit, {
