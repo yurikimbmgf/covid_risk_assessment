@@ -5,6 +5,9 @@ library(here)
 
 
 temp <- list.files(path = here("responses"), pattern="*.csv", full.names = TRUE) # Worry about "full.names" when deployed to shinyapps
-myfiles <- lapply(temp, read_csv)
+myfiles <- lapply(temp, read_csv, col_types = cols(.default = "c"))
+# myfiles <- lapply(temp, read_csv)
 
-myfiles %>% bind_rows()
+dat <- myfiles %>% bind_rows()
+
+dat

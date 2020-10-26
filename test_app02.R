@@ -19,7 +19,7 @@ library(tidyverse)
 library(shiny)
 library(shinyjs)
 library(shinyWidgets)
-
+library(janitor)
 
 # Prep --------------------------------------------------------------------
 # which fields get saved 
@@ -205,7 +205,7 @@ shinyApp(
                id = "form",
                
                # Section 1: comfort
-               h4("Part 1: What's your comfort level?"),
+               h4("Part 1: Are You Comfortable?"),
                div(strong("Please rate your comfort level for the following:")),
                div(class = "questiontext", "Grocery shopping in-store"),
                div(class = "rowquestion",
@@ -215,22 +215,22 @@ shinyApp(
                    div(class = "columnlabel", "Very Comfortable")
                    ),
                
-               div(class = "questiontext", "Flying on an airplane for 3+ hours"),
+               div(class = "questiontext", "Take a 3+ hour plane ride"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
                    div(class = "column",
                        radioGroupButtons("comfort_plane", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                    div(class = "columnlabel", "Very Comfortable")
                ),
-               
-               div(class = "questiontext", "Flying on an airplane for 3+ hours"),
-               div(class = "rowquestion",
-                   div(class = "columnlabel", "Very Uncomfortable"),
-                   div(class = "column",
-                       radioGroupButtons("comfort_plane", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
-                   div(class = "columnlabel", "Very Comfortable")
-               ),
-               
+               # 
+               # div(class = "questiontext", "Flying on an airplane for 3+ hours"),
+               # div(class = "rowquestion",
+               #     div(class = "columnlabel", "Very Uncomfortable"),
+               #     div(class = "column",
+               #         radioGroupButtons("comfort_plane", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+               #     div(class = "columnlabel", "Very Comfortable")
+               # ),
+               # 
                div(class = "questiontext", "Eating at an restaurant INDOORS"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
@@ -299,7 +299,7 @@ shinyApp(
 
                # Section 2: behavior
                div(class = "spacer"),
-               h4("Part 2: What's did you do?"),
+               h4("Part 2: What Have You Done?"),
                div("When was the last time you did any of the following?"),
                
                div(class = "questiontext", "I have done grocery shopping in-store..."),
@@ -307,7 +307,7 @@ shinyApp(
                    div(class = "column",
                        radioGroupButtons("behavior_grocery", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
-               div(class = "questiontext", "I have flown on an airplane for 3+ hours..."),
+               div(class = "questiontext", "I have taken a 3+ hour plane ride..."),
                div(class = "rowquestion",
                    div(class = "column",
                        radioGroupButtons("behavior_plane", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
