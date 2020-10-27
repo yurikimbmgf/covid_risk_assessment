@@ -3,11 +3,9 @@
 # http://shinyapps.dreamrs.fr/shinyWidgets/
 
 # Todo
-# DONE - Get rid of extra junk
-# - Add questions
-# - re-format the layout
-# - Add visuals
-
+# correct the order of behavior (since before february and since february)
+# Fix ggplot visuals (text size, background color)
+# make it so you get a spinny thing to load the ggplots.
 
 # What's more intuitive? Asking "how comfortable are you with X" and then under it, "in the last month, have you done X" -OR- go through all the comfort qs then all the behavior qs?
 
@@ -147,6 +145,33 @@ func_visual_1to4 <- function(df_name, variable_name, question_text) {
 }
 
 
+func_visual_behavior <- function(df_name, variable_name, question_text) {
+  df <- tabyl(df_name, variable_name) %>% 
+    rename(choice = variable_name) %>% 
+    mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.character() ~ "#e88f00",
+                                 TRUE ~ "#124d47")) %>% 
+    mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.character() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
+                                      TRUE ~ percent(percent, accuracy = 1)))
+  
+  ggplot(data = df,
+         aes(x = choice, 
+             y = percent,
+             fill = bar_color,
+             color = bar_color,
+             label = your_selection)) +
+    geom_bar(stat = "identity") +
+    geom_text(vjust = -1) +
+    scale_fill_identity() +
+    scale_color_identity() +
+    scale_y_continuous(label = percent) +
+    theme_fivethirtyeight() +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(title = question_text,
+         caption = paste0("Total Responses: ", sum(df$n)  )
+    ) 
+}
+
+
 # State Dropdown
 states_list <- c("Alabama",
                  "Alaska",
@@ -252,15 +277,6 @@ shinyApp(
                        radioGroupButtons("comfort_plane", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                    div(class = "columnlabel", "Very Comfortable")
                ),
-               # 
-               # div(class = "questiontext", "Flying on an airplane for 3+ hours"),
-               # div(class = "rowquestion",
-               #     div(class = "columnlabel", "Very Uncomfortable"),
-               #     div(class = "column",
-               #         radioGroupButtons("comfort_plane", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
-               #     div(class = "columnlabel", "Very Comfortable")
-               # ),
-               # 
                div(class = "questiontext", "Eating at an restaurant INDOORS"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
@@ -558,50 +574,68 @@ shinyApp(
         div(
           id = "adminPanel",
           h2("Previous responses (only visible to admins)"),
-          plotOutput("visual_comfort_grocery")
-          # DT::dataTableOutput("responsesTable")
+          h4("Part 1: Are You Comfortable?"),
+          plotOutput("visual_comfort_grocery"),
+          plotOutput("visual_comfort_plane"),
+          plotOutput("visual_comfort_restaurant_in"),
+          plotOutput("visual_comfort_restaurant_out"),
+          plotOutput("visual_comfort_friends_in"),
+          plotOutput("visual_comfort_friends_out"),
+          plotOutput("visual_comfort_event_in"),
+          plotOutput("visual_comfort_event_out"),
+          plotOutput("visual_comfort_medical"),
+          plotOutput("visual_comfort_personal"),
+          
+          h4("Part 2: What Have You Done?"),
+          div("When was the last time you did any of the following?"),
+          plotOutput("visual_behavior_grocery")
+          
+
 
         )
     })}
     )
-    # output$adminPanelContainer <- renderUI({
-      # if (!isAdmin()) return()
-      
-      # div(
-        # id = "adminPanel",
-        # h2("Previous responses (only visible to admins)")
-        # downloadButton("downloadBtn", "Download responses"), br(), br(),
-        # DT::dataTableOutput("responsesTable"), 
-        # br(),
-        # "* There were over 2000 responses by Dec 4 2017, so all data prior to that date was deleted as a cleanup"
-      # )
-    # })
-    
-    # determine if current user is admin
-    # isAdmin <- reactive({
-    #   is.null(session$user) || session$user %in% adminUsers
-    # })    
-    
-    # Show the responses in the admin table
-    output$responsesTable <- DT::renderDataTable({
-      data <- loadData()
-      data$timestamp <- as.POSIXct(data$timestamp, origin="1970-01-01")
-      DT::datatable(
-        data,
-        rownames = FALSE,
-        options = list(searching = FALSE, lengthChange = FALSE)
-      )
-    })
-    
-    
+
     # All the visuals
     # COMFORT
     output$visual_comfort_grocery <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_grocery",
                                                                  question_text = "Comfort: Grocery shopping in-store"))
+    output$visual_comfort_plane <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_plane",
+                                                                 question_text = "Comfort: Take a 3+ hour plane ride"))
+    output$visual_comfort_restaurant_in <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_restaurant_in",
+                                                                 question_text = "Comfort: Eating at an restaurant INDOORS"))
+    output$visual_comfort_restaurant_out <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_restaurant_out",
+                                                                 question_text = "Comfort: Eating at an restaurant OUTDOORS"))
+    output$visual_comfort_friends_in <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_friends_in",
+                                                                 question_text = "Comfort: Seeing friends/family INDOORS"))
+    output$visual_comfort_friends_out <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_friends_out",
+                                                                 question_text = "Comfort: Seeing friends/family OUTDOORS"))
+    output$visual_comfort_event_in <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_event_in",
+                                                                 question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"))
+    output$visual_comfort_event_out <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_event_out",
+                                                                 question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"))
+    output$visual_comfort_medical <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_medical",
+                                                                 question_text = "Comfort: Receiving elective medical treatments (dental cleanings, check-ups, etc.)"))
+    output$visual_comfort_personal <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_personal",
+                                                                 question_text = "Comfort: Receiving personal services (haircuts, manicures, etc.)"))
+    
+    # BEHAVIOR
+    output$visual_behavior_grocery <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                 variable_name = "behavior_grocery",
+                                                                 question_text = "I have done grocery shopping in-store..."))
     
     
 
- 
+    
   }
 )
