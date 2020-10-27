@@ -12,6 +12,7 @@
 # What's more intuitive? Asking "how comfortable are you with X" and then under it, "in the last month, have you done X" -OR- go through all the comfort qs then all the behavior qs?
 
 
+# HAVING A MULTIPLE OPTION SELECTION BREAKS EVERYTHING!!!!! I SPEND 2HRS TRYING TO MAKE IT RIGHT. JUST DROPPING THE QUESTION.
 
 
 # Packages ----------------------------------------------------------------
@@ -44,7 +45,7 @@ fieldsAll <- c("comfort_grocery",
                "behavior_event_out",
                "behavior_medical",
                "behavior_personal",
-               "behavior_mask",
+               # "behavior_mask",
                "feelings_catch",
                "feelings_spread",
                "feelings_precaution",
@@ -352,22 +353,43 @@ shinyApp(
                        radioGroupButtons("behavior_personal", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                
-               div(class = "questiontext", "Please check off all that apply to your mask-wearing behaviors:"),
-               div(class = "rowquestionmask",
-                   div(class = "columnnotcentered",
-                       # "Please check off all that apply to your mask-wearing behaviors:",
-                       checkboxGroupInput("behavior_mask", "", 
-                                          c("I wear a mask when outdoors and there are few to no people near me.", 
-                                            "I wear a mask when outdoors and am close to people.",
-                                            "I wear a mask when indoors and there are few to no people near me.",
-                                            "I wear a mask when indoors and am close to other people.",
-                                            "I never wear a mask."), inline = FALSE, width = "500px")
-                   )
-                   ),
                
-               # Section 3: Feelings about COVID-19
+               # Section 2: behavior
                div(class = "spacer"),
-               h4("Part 3: How do you feel about your feelings?"),
+               h4("Part 3: Face Mask?"),
+               div("Please describe your face masking wearing habits?"),
+               
+               div(class = "questiontext", "I wear a face mask any time I am INDOORS"),
+               div(class = "rowquestion",
+                   div(class = "columnlabel", "I never wear a face mask"),
+                   div(class = "column",
+                       radioGroupButtons("comfort_personal", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                   div(class = "columnlabel", "I wear a face mask 100% of the time")
+               ),
+               div(class = "questiontext", "I wear a face mask any time I am OUTDOORS"),
+               div(class = "rowquestion",
+                   div(class = "columnlabel", "I never wear a face mask"),
+                   div(class = "column",
+                       radioGroupButtons("comfort_personal", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                   div(class = "columnlabel", "I wear a face mask 100% of the time")
+               ),
+               
+               # div(class = "questiontext", "Please check off all that apply to your mask-wearing behaviors:"),
+               # div(class = "rowquestionmask",
+               #     div(class = "columnnotcentered",
+               #         # "Please check off all that apply to your mask-wearing behaviors:",
+               #         checkboxGroupInput("behavior_mask", "", 
+               #                            c("I wear a mask when outdoors and there are few to no people near me.", 
+               #                              "I wear a mask when outdoors and am close to people.",
+               #                              "I wear a mask when indoors and there are few to no people near me.",
+               #                              "I wear a mask when indoors and am close to other people.",
+               #                              "I never wear a mask."), inline = FALSE, width = "500px")
+               #     )
+               #     ),
+               
+               # Section 4: Feelings about COVID-19
+               div(class = "spacer"),
+               h4("Part 4: How do you feel about your feelings?"),
                div("Please rate how much you agree with the following statements. 1 = Very much disagree; 4 = Very much agree"),
                
                div(class = "questiontext", "I am worried about catching COVID-19"),
@@ -402,9 +424,9 @@ shinyApp(
                    div(class = "columnlabel", "Very Much Agree")
                ),
                
-               # Section 4: About You
+               # Section 5: About You
                div(class = "spacer"),
-               h4("Part 4: Tell me about yourself"),
+               h4("Part 5: Tell me about yourself"),
                div("A couple of demographics questions"),
                # selectInput("about_state", "Where do you live?",
                #             states_list),
@@ -462,20 +484,10 @@ shinyApp(
     
     # Gather all the form inputs (and add timestamp)
     formData <- reactive({
-      # data <- sapply(fieldsAll, function(x) input[[x]]) 
-      data <- sapply(fieldsAll, function(x) input[[x]]) %>% as_data_frame()
-      data <- data %>%
-        pivot_longer(names_to = "names", values_to = "value", cols = everything()) %>% 
-        distinct() %>%
-        mutate(new_value = case_when(names == "behavior_mask" ~ "1", TRUE ~ value)) %>% 
-        mutate(names = case_when(names == "behavior_mask" ~ paste0("Mask Behavior: ", value),
-                                 TRUE ~ names)) %>% 
-        select(-value) %>% 
-        rename(value = new_value) %>% 
-        pivot_wider(names_from = "names", values_from = "value") %>% 
-        clean_names() %>% 
-        mutate_at(vars(matches("mask_behavior")), as.numeric) %>% 
-        bind_cols(tibble(timestamp = epochTime()))
+      data <- sapply(fieldsAll, function(x) input[[x]])
+      data <- c(data, timestamp = epochTime())
+      data <- t(data)
+      data
     })
     
     # When the Submit button is clicked, submit the response

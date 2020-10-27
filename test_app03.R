@@ -30,9 +30,10 @@ library(janitor)
 
 # Prep --------------------------------------------------------------------
 # which fields get saved 
-fieldsAll <- c(
-               "behavior_personal",
-               "behavior_mask"
+fieldsAll <- c("about_gender",
+               "about_job",
+               "behavior_personal"
+               # "behavior_mask"
                
 )
 
@@ -114,6 +115,9 @@ shinyApp(
                
                # Section 2: behavior
                div(class = "spacer"),
+               selectInput("about_gender", "To which gender identity do you most identify?",
+                           c("Female", "Male", "Transgender", "Gender Variant / Non-Conforming")),
+               radioButtons("about_job", "I am a frontline worker.", c("Yes", "No"), inline = TRUE),
                h4("Part 2: What Have You Done?"),
                div("When was the last time you did any of the following?"),
 
@@ -123,18 +127,18 @@ shinyApp(
                        radioGroupButtons("behavior_personal", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                
-               div(class = "questiontext", "Please check off all that apply to your mask-wearing behaviors:"),
-               div(class = "rowquestionmask",
-                   div(class = "columnnotcentered",
-                       # "Please check off all that apply to your mask-wearing behaviors:",
-                       checkboxGroupInput("behavior_mask", "", 
-                                          c("I wear a mask when outdoors and there are few to no people near me.", 
-                                            "I wear a mask when outdoors and am close to people.",
-                                            "I wear a mask when indoors and there are few to no people near me.",
-                                            "I wear a mask when indoors and am close to other people.",
-                                            "I never wear a mask."), inline = FALSE, width = "500px")
-                   )
-               ),
+               # div(class = "questiontext", "Please check off all that apply to your mask-wearing behaviors:"),
+               # div(class = "rowquestionmask",
+               #     div(class = "columnnotcentered",
+               #         # "Please check off all that apply to your mask-wearing behaviors:",
+               #         checkboxGroupInput("behavior_mask", "", 
+               #                            c("I wear a mask when outdoors and there are few to no people near me.", 
+               #                              "I wear a mask when outdoors and am close to people.",
+               #                              "I wear a mask when indoors and there are few to no people near me.",
+               #                              "I wear a mask when indoors and am close to other people.",
+               #                              "I never wear a mask."), inline = FALSE, width = "500px")
+               #     )
+               # ),
                
                
                actionButton("submit", "Submit", class = "btn-primary"),
@@ -155,19 +159,25 @@ shinyApp(
     # Gather all the form inputs (and add timestamp)
     formData <- reactive({
       # data <- sapply(fieldsAll, function(x) input[[x]]) 
-      data <- sapply(fieldsAll, function(x) input[[x]]) %>% as_data_frame()
-      data <- data %>%
-        pivot_longer(names_to = "names", values_to = "value", cols = everything()) %>% 
-        distinct() %>%
-        mutate(new_value = case_when(names == "behavior_mask" ~ "1", TRUE ~ value)) %>% 
-        mutate(names = case_when(names == "behavior_mask" ~ paste0("Mask Behavior: ", value),
-                                 TRUE ~ names)) %>% 
-        select(-value) %>% 
-        rename(value = new_value) %>% 
-        pivot_wider(names_from = "names", values_from = "value") %>% 
-        clean_names() %>% 
-        mutate_at(vars(matches("mask_behavior")), as.numeric) %>% 
-        bind_cols(tibble(timestamp = epochTime()))
+      data <- sapply(fieldsAll, function(x) input[[x]]) 
+      # data <- data %>% as_data_frame()
+      data <- t(data)
+      # data <- data %>% as_data_frame()
+      # data <- as.data.frame(data)
+
+            # data <- data %>%
+        # pivot_longer(names_to = "names", values_to = "value", cols = everything())
+      # %>%
+      #   distinct() %>%
+      #   mutate(new_value = case_when(names == "behavior_mask" ~ "1", TRUE ~ value)) %>%
+      #   mutate(names = case_when(names == "behavior_mask" ~ paste0("Mask Behavior: ", value),
+      #                            TRUE ~ names)) %>%
+      #   select(-value) %>%
+      #   rename(value = new_value) %>%
+      #   pivot_wider(names_from = "names", values_from = "value") %>%
+      #   clean_names() %>%
+      #   mutate_at(vars(matches("mask_behavior")), as.numeric) %>%
+      #   bind_cols(tibble(timestamp = epochTime()))
       
         
         
