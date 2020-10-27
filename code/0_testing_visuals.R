@@ -37,9 +37,10 @@ test <- tabyl(test_4, comfort_grocery) %>%
   mutate(bar_color = case_when(choice == test_4 %>% filter(timestamp == max(timestamp)) %>% select(comfort_grocery) %>% as.numeric() ~ "#e88f00",
                                TRUE ~ "#124d47")) %>% 
   mutate(your_selection = case_when(choice == test_4 %>% filter(timestamp == max(timestamp)) %>% select(comfort_grocery) %>% as.numeric() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
-                                    TRUE ~ percent(percent, accuracy = 1)))
+                                    TRUE ~ percent(percent, accuracy = 1))) 
 
 
+test
 test_4 %>% filter(timestamp == max(timestamp)) %>% select(comfort_grocery) %>% as.numeric()
 ggplot(data = test,
        aes(x = choice, 
@@ -54,10 +55,13 @@ ggplot(data = test,
   scale_y_continuous(label = percent) +
   theme_fivethirtyeight() +
   coord_cartesian(ylim = c(0, 1)) +
-  ggtitle("Test")
+  labs(title = "Test",
+       caption = paste0("Total Responses: ", sum(test$n)  )
+       ) 
 
-
-
+test_4
+tabyl(test_4, comfort_grocery) %>% adorn_totals(where = "col")
+?adorn_totals
 # behavior ----------------------------------------------------------------
 dat
 test_b <- dat %>% select(timestamp, behavior_personal)
@@ -85,4 +89,37 @@ ggplot(data = test_b_pct,
   theme_fivethirtyeight() +
   coord_cartesian(ylim = c(0, 1)) +
   ggtitle("Test")
+
+
+
+
+
+
+# Function ----------------------------------------------------------------
+
+func_visual_1to4 <- function(df_name, variable_name, question_text) {
+  df <- tabyl(df_name, variable_name) %>% 
+    rename(choice = variable_name) %>% 
+    mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ "#e88f00",
+                                 TRUE ~ "#124d47")) %>% 
+    mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
+                                      TRUE ~ percent(percent, accuracy = 1)))
+  
+  ggplot(data = df,
+         aes(x = choice, 
+             y = percent,
+             fill = bar_color,
+             color = bar_color,
+             label = your_selection)) +
+    geom_bar(stat = "identity") +
+    geom_text(vjust = -1) +
+    scale_fill_identity() +
+    scale_color_identity() +
+    scale_y_continuous(label = percent) +
+    theme_fivethirtyeight() +
+    coord_cartesian(ylim = c(0, 1)) +
+    ggtitle(question_text)
+}
+
+func_visual_1to4(test_4, "comfort_grocery", "test")
 

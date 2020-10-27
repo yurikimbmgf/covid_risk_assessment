@@ -115,8 +115,36 @@ appCSS <-
   "
 
 # usernames that are admins
-adminUsers <- c("admin", "prof")
+# adminUsers <- c("admin", "prof")
 
+
+
+# Functions to transform the responses to visuals
+func_visual_1to4 <- function(df_name, variable_name, question_text) {
+  df <- tabyl(df_name, variable_name) %>% 
+    rename(choice = variable_name) %>% 
+    mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ "#e88f00",
+                                 TRUE ~ "#124d47")) %>% 
+    mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
+                                      TRUE ~ percent(percent, accuracy = 1)))
+  
+  ggplot(data = df,
+         aes(x = choice, 
+             y = percent,
+             fill = bar_color,
+             color = bar_color,
+             label = your_selection)) +
+    geom_bar(stat = "identity") +
+    geom_text(vjust = -1) +
+    scale_fill_identity() +
+    scale_color_identity() +
+    scale_y_continuous(label = percent) +
+    theme_fivethirtyeight() +
+    coord_cartesian(ylim = c(0, 1)) +
+    labs(title = question_text,
+         caption = paste0("Total Responses: ", sum(df$n)  )
+    ) 
+}
 
 
 # State Dropdown
@@ -454,8 +482,8 @@ shinyApp(
              shinyjs::hidden(
                div(
                  id = "thankyou_msg",
-                 h3("Thanks, your response was submitted successfully!"),
-                 actionLink("submit_another", "Submit another response")
+                 h3("Thanks, your response was submitted successfully!")
+                 # actionLink("submit_another", "Submit another response")
                )
              )
       )
@@ -524,22 +552,35 @@ shinyApp(
     })
     
     # render the admin panel
-    output$adminPanelContainer <- renderUI({
-      if (!isAdmin()) return()
+    
+    observeEvent(input$submit, {
+      output$adminPanelContainer <- renderUI({
+        div(
+          id = "adminPanel",
+          h2("Previous responses (only visible to admins)"),
+          plotOutput("visual_comfort_grocery")
+          # DT::dataTableOutput("responsesTable")
+
+        )
+    })}
+    )
+    # output$adminPanelContainer <- renderUI({
+      # if (!isAdmin()) return()
       
-      div(
-        id = "adminPanel",
-        h2("Previous responses (only visible to admins)"),
-        downloadButton("downloadBtn", "Download responses"), br(), br(),
-        DT::dataTableOutput("responsesTable"), br(),
-        "* There were over 2000 responses by Dec 4 2017, so all data prior to that date was deleted as a cleanup"
-      )
-    })
+      # div(
+        # id = "adminPanel",
+        # h2("Previous responses (only visible to admins)")
+        # downloadButton("downloadBtn", "Download responses"), br(), br(),
+        # DT::dataTableOutput("responsesTable"), 
+        # br(),
+        # "* There were over 2000 responses by Dec 4 2017, so all data prior to that date was deleted as a cleanup"
+      # )
+    # })
     
     # determine if current user is admin
-    isAdmin <- reactive({
-      is.null(session$user) || session$user %in% adminUsers
-    })    
+    # isAdmin <- reactive({
+    #   is.null(session$user) || session$user %in% adminUsers
+    # })    
     
     # Show the responses in the admin table
     output$responsesTable <- DT::renderDataTable({
@@ -552,14 +593,15 @@ shinyApp(
       )
     })
     
-    # Allow user to download responses
-    output$downloadBtn <- downloadHandler(
-      filename = function() { 
-        sprintf("mimic-google-form_%s.csv", humanTime())
-      },
-      content = function(file) {
-        write.csv(loadData(), file, row.names = FALSE)
-      }
-    )    
+    
+    # All the visuals
+    # COMFORT
+    output$visual_comfort_grocery <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_grocery",
+                                                                 question_text = "Comfort: Grocery shopping in-store"))
+    
+    
+
+ 
   }
 )
