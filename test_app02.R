@@ -1,6 +1,7 @@
 # Test App 2
 # Building this off of https://github.com/daattali/shiny-server/blob/master/mimic-google-form/app.R
 # http://shinyapps.dreamrs.fr/shinyWidgets/
+# https://stackoverflow.com/questions/49488228/how-to-show-spinning-wheel-or-busy-icon-while-waiting-in-shiny
 
 # Todo
 # correct the order of behavior (since before february and since february)
@@ -19,6 +20,8 @@ library(shiny)
 library(shinyjs)
 library(shinyWidgets)
 library(janitor)
+library(shinycssloaders)
+
 
 # Prep --------------------------------------------------------------------
 # which fields get saved 
@@ -118,13 +121,17 @@ appCSS <-
 
 
 # Functions to transform the responses to visuals
-func_visual_1to4 <- function(df_name, variable_name, question_text) {
+func_visual_1to4 <- function(df_name, variable_name, question_text, var1_rename, var2_rename) {
   df <- tabyl(df_name, variable_name) %>% 
     rename(choice = variable_name) %>% 
     mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ "#e88f00",
                                  TRUE ~ "#124d47")) %>% 
     mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
-                                      TRUE ~ percent(percent, accuracy = 1)))
+                                      TRUE ~ percent(percent, accuracy = 1))) %>% 
+    mutate(choice = case_when(choice == 1 ~ var1_rename, 
+                              choice == 2 ~ "2",
+                              choice == 3 ~ "3",
+                              choice == 4 ~ var2_rename))
   
   ggplot(data = df,
          aes(x = choice, 
@@ -140,8 +147,14 @@ func_visual_1to4 <- function(df_name, variable_name, question_text) {
     theme_fivethirtyeight() +
     coord_cartesian(ylim = c(0, 1)) +
     labs(title = question_text,
-         caption = paste0("Total Responses: ", sum(df$n)  )
-    ) 
+         caption = paste0("(Total Responses: ", sum(df$n), ")")
+    ) +
+    theme(plot.title = element_text(size=12),
+          plot.background = element_rect(fill = "#fdfdfd"),
+          panel.grid.major.x = element_blank(),
+          panel.background = element_rect(fill = "#fdfdfd"),
+          plot.caption = element_text(hjust = 0, face = "italic"))
+  
 }
 
 
@@ -151,7 +164,8 @@ func_visual_behavior <- function(df_name, variable_name, question_text) {
     mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.character() ~ "#e88f00",
                                  TRUE ~ "#124d47")) %>% 
     mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.character() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
-                                      TRUE ~ percent(percent, accuracy = 1)))
+                                      TRUE ~ percent(percent, accuracy = 1))) %>% 
+    mutate(choice = fct_relevel(choice, "in the last month", "in the last quarter", "since February", "since before February"))
   
   ggplot(data = df,
          aes(x = choice, 
@@ -167,8 +181,10 @@ func_visual_behavior <- function(df_name, variable_name, question_text) {
     theme_fivethirtyeight() +
     coord_cartesian(ylim = c(0, 1)) +
     labs(title = question_text,
-         caption = paste0("Total Responses: ", sum(df$n)  )
-    ) 
+         caption = paste0("(Total Responses: ", sum(df$n), ")" )
+    ) +
+    theme(plot.title = element_text(size=12),
+          plot.caption = element_text(hjust = 0, face = "italic"))
 }
 
 
@@ -236,22 +252,24 @@ shinyApp(
     theme = "style.css",
     shinyjs::useShinyjs(),
     shinyjs::inlineCSS(appCSS),
-    title = "Mimicking a Google Form with a Shiny app",
+    title = "COVID-19 Risk Tolerance Survey",
 
     div(id = "header",
-        h1("Mimicking a Google Form with a Shiny app"),
-        h4("This app is a supplement to my",
-           a(href = "http://deanattali.com/2015/06/14/mimicking-google-form-shiny/",
-             "blog post on the topic")
+        h1("COVID-19 Risk Tolerance Survey"),
+        h4("Please take the short survey below about your comfort level, behaviors, and feelings about your actions.",
+           br(),
+           "After you submit your answers, you'll how your responses compare to others who have taken the survey!",
+           br(),
+           br(),
+           "Thanks for taking part in this little experiment!"
         ),
-        strong( 
-          span("Created by "),
-          a("Dean Attali", href = "http://deanattali.com"),
-          HTML("&bull;"),
-          span("Code"),
-          a("on GitHub", href = "https://github.com/daattali/shiny-server/tree/master/mimic-google-form"),
-          HTML("&bull;"),
-          a("More apps", href = "http://daattali.com/shiny/"), "by Dean")
+        div(
+           "(Have you already taken the survey and just want to see the results?", 
+           a(href = "http://deanattali.com/2015/06/14/mimicking-google-form-shiny/",
+             "Click Here."),
+           ")"
+        )
+
     ),
     
     fluidRow(
@@ -402,7 +420,7 @@ shinyApp(
                
                # Section 2: behavior
                div(class = "spacer"),
-               h4("Part 3: Face Mask?"),
+               h4("Part 3: What's On Your Face?"),
                div("Please describe your face masking wearing habits?"),
                
                div(class = "questiontext", "I wear a face mask any time I am INDOORS"),
@@ -420,22 +438,9 @@ shinyApp(
                    div(class = "columnlabel", "I wear a face mask 100% of the time")
                ),
                
-               # div(class = "questiontext", "Please check off all that apply to your mask-wearing behaviors:"),
-               # div(class = "rowquestionmask",
-               #     div(class = "columnnotcentered",
-               #         # "Please check off all that apply to your mask-wearing behaviors:",
-               #         checkboxGroupInput("behavior_mask", "", 
-               #                            c("I wear a mask when outdoors and there are few to no people near me.", 
-               #                              "I wear a mask when outdoors and am close to people.",
-               #                              "I wear a mask when indoors and there are few to no people near me.",
-               #                              "I wear a mask when indoors and am close to other people.",
-               #                              "I never wear a mask."), inline = FALSE, width = "500px")
-               #     )
-               #     ),
-               
                # Section 4: Feelings about COVID-19
                div(class = "spacer"),
-               h4("Part 4: How do you feel about your feelings?"),
+               h4("Part 4: How Ya Feelin'?"),
                div("Please rate how much you agree with the following statements. 1 = Very much disagree; 4 = Very much agree"),
                
                div(class = "questiontext", "I am worried about catching COVID-19"),
@@ -470,12 +475,10 @@ shinyApp(
                    div(class = "columnlabel", "Very Much Agree")
                ),
                
-               # Section 5: About You
+               # Section 3: About You
                div(class = "spacer"),
-               h4("Part 5: Tell me about yourself"),
-               div("A couple of demographics questions"),
-               # selectInput("about_state", "Where do you live?",
-               #             states_list),
+               h4("Part 5: Who Are You?"),
+               div("A couple of demographics questions. NOTE: This data is not shared publicly."),
                selectInput("about_age", "How old are you?",
                            c("Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+")),
                selectInput("about_gender", "To which gender identity do you most identify?",
@@ -498,8 +501,7 @@ shinyApp(
              shinyjs::hidden(
                div(
                  id = "thankyou_msg",
-                 h3("Thanks, your response was submitted successfully!")
-                 # actionLink("submit_another", "Submit another response")
+                 h3("Thanks for sharing! See how you compare to others who took this survey below!")
                )
              )
       )
@@ -507,6 +509,18 @@ shinyApp(
     fluidRow(
       column(12,
              uiOutput("adminPanelContainer")
+      )
+    ),
+    fluidRow(
+      hr(),
+      div( 
+        span("Much of this code was taken from "),
+        a("Dean Attali's", href = "http://deanattali.com"),
+        a("Mimic Google Form", href = "http://deanattali.com"),
+        span("project."),
+        br(),
+        span("Created by"),
+        a("Yuri", href = "http://www.twitter.com/yurikim")
       )
     )
   ),
@@ -575,22 +589,44 @@ shinyApp(
           id = "adminPanel",
           h2("Previous responses (only visible to admins)"),
           h4("Part 1: Are You Comfortable?"),
-          plotOutput("visual_comfort_grocery"),
-          plotOutput("visual_comfort_plane"),
-          plotOutput("visual_comfort_restaurant_in"),
-          plotOutput("visual_comfort_restaurant_out"),
-          plotOutput("visual_comfort_friends_in"),
-          plotOutput("visual_comfort_friends_out"),
-          plotOutput("visual_comfort_event_in"),
-          plotOutput("visual_comfort_event_out"),
-          plotOutput("visual_comfort_medical"),
-          plotOutput("visual_comfort_personal"),
+          plotOutput("visual_comfort_grocery", height = 310),
+          plotOutput("visual_comfort_plane", height = 310),
+          plotOutput("visual_comfort_restaurant_in", height = 310),
+          plotOutput("visual_comfort_restaurant_out", height = 310),
+          plotOutput("visual_comfort_friends_in", height = 310),
+          plotOutput("visual_comfort_friends_out", height = 310),
+          plotOutput("visual_comfort_event_in", height = 310),
+          plotOutput("visual_comfort_event_out", height = 310),
+          plotOutput("visual_comfort_medical", height = 310),
+          plotOutput("visual_comfort_personal", height = 310),
           
+          div(class = "spacer"),
           h4("Part 2: What Have You Done?"),
           div("When was the last time you did any of the following?"),
-          plotOutput("visual_behavior_grocery")
+          plotOutput("visual_behavior_grocery", height = 310)  %>% withSpinner(color="#e88f00"),
+          plotOutput("visual_behavior_restaurant_in", height = 310),
+          plotOutput("visual_behavior_restaurant_out", height = 310),
+          plotOutput("visual_behavior_friends_in", height = 310),
+          plotOutput("visual_behavior_friends_out", height = 310),
+          plotOutput("visual_behavior_event_in", height = 310),
+          plotOutput("visual_behavior_event_out", height = 310),
+          plotOutput("visual_behavior_medical", height = 310),
+          plotOutput("visual_behavior_personal", height = 310),
           
-
+          div(class = "spacer"),
+          h4("Part 3: What's On Your Face?"),
+          div("Please describe your face masking wearing habits."),
+          plotOutput("visual_mask_indoor", height = 310),
+          plotOutput("visual_mask_outdoor", height = 310),
+          
+          div(class = "spacer"),
+          h4("Part 4: How Ya Feelin'?"),
+          div("Please describe your face masking wearing habits."),
+          plotOutput("visual_feelings_catch", height = 310),
+          plotOutput("visual_feelings_spread", height = 310),
+          plotOutput("visual_feelings_precaution", height = 310),
+          plotOutput("visual_feelings_severity", height = 310)
+          
 
         )
     })}
@@ -600,42 +636,122 @@ shinyApp(
     # COMFORT
     output$visual_comfort_grocery <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_grocery",
-                                                                 question_text = "Comfort: Grocery shopping in-store"))
+                                                                 question_text = "Comfort: Grocery shopping in-store",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable"), height = 275)
     output$visual_comfort_plane <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_plane",
-                                                                 question_text = "Comfort: Take a 3+ hour plane ride"))
+                                                               var1_rename =  "1: Very Uncomfortable",
+                                                               var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Take a 3+ hour plane ride"), height = 275)
     output$visual_comfort_restaurant_in <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_restaurant_in",
-                                                                 question_text = "Comfort: Eating at an restaurant INDOORS"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Eating at an restaurant INDOORS"), height = 275)
     output$visual_comfort_restaurant_out <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_restaurant_out",
-                                                                 question_text = "Comfort: Eating at an restaurant OUTDOORS"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Eating at an restaurant OUTDOORS"), height = 275)
     output$visual_comfort_friends_in <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_friends_in",
-                                                                 question_text = "Comfort: Seeing friends/family INDOORS"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Seeing friends/family INDOORS"), height = 275)
     output$visual_comfort_friends_out <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_friends_out",
-                                                                 question_text = "Comfort: Seeing friends/family OUTDOORS"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275)
     output$visual_comfort_event_in <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_event_in",
-                                                                 question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"), height = 275)
     output$visual_comfort_event_out <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_event_out",
-                                                                 question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"), height = 275)
     output$visual_comfort_medical <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_medical",
-                                                                 question_text = "Comfort: Receiving elective medical treatments (dental cleanings, check-ups, etc.)"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Receiving elective medical treatments (dental cleanings, check-ups, etc.)"), height = 275)
     output$visual_comfort_personal <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_personal",
-                                                                 question_text = "Comfort: Receiving personal services (haircuts, manicures, etc.)"))
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Receiving personal services (haircuts, manicures, etc.)"), height = 275)
     
     # BEHAVIOR
     output$visual_behavior_grocery <- renderPlot(func_visual_behavior(df_name = loadData(),
                                                                  variable_name = "behavior_grocery",
-                                                                 question_text = "I have done grocery shopping in-store..."))
+                                                                 question_text = "I have done grocery shopping in-store..."), height = 275)
+    output$visual_behavior_plane <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_plane",
+                                                                      question_text = "I have taken a 3+ hour plane ride..."), height = 275)
+    output$visual_behavior_restaurant_in <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_restaurant_in",
+                                                                      question_text = "I have eaten at a restaurant INDOORS..."), height = 275)
+    output$visual_behavior_restaurant_out <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_restaurant_out",
+                                                                      question_text = "I have eaten at a restaurant OUTDOORS..."), height = 275)
+    output$visual_behavior_friends_in <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_friends_in",
+                                                                      question_text = "I have seen family/friends INDOORS..."), height = 275)
+    output$visual_behavior_friends_out <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_friends_out",
+                                                                      question_text = "I have seen family/friends OUTDOORS..."), height = 275)
+    output$visual_behavior_event_in <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_event_in",
+                                                                      question_text = "I have attended a large event that is partially or fully INDOORS..."), height = 275)
+    output$visual_behavior_event_out <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_event_out",
+                                                                      question_text = "I have attended a large event that is partially or fully OUTDOORS..."), height = 275)
+    output$visual_behavior_medical <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_medical",
+                                                                      question_text = "I have recieved elective medical treatments..."), height = 275)
+    output$visual_behavior_personal <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_personal",
+                                                                      question_text = "I have recieved personal services..."), height = 275)
     
-    
+    # MASK
+    output$visual_mask_indoor <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "mask_indoor",
+                                                             var1_rename =  "1: I Never Wear a Face Mask",
+                                                             var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
+                                                                 question_text = "I wear a face mask any time I am INDOORS"), height = 275)
+    output$visual_mask_outdoor <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                             variable_name = "mask_outdoor",
+                                                             var1_rename =  "1: I Never Wear a Face Mask",
+                                                             var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
+                                                             question_text = "I wear a face mask any time I am OUTDOORS"), height = 275)
 
     
+    # FEELING
+    output$visual_feelings_catch <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                             variable_name = "feelings_catch",
+                                                             var1_rename =  "1: Very Much Disagree",
+                                                             var2_rename =  "4: Very Much Agree",
+                                                             question_text = "I am worried about catching COVID-19"), height = 275)
+    output$visual_feelings_spread <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                              variable_name = "feelings_spread",
+                                                              var1_rename =  "1: Very Much Disagree",
+                                                              var2_rename =  "4: Very Much Agree",
+                                                              question_text = "I am worried about being a spreader of COVID-19"), height = 275)
+    output$visual_feelings_precaution <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                             variable_name = "feelings_precaution",
+                                                             var1_rename =  "1: Very Much Disagree",
+                                                             var2_rename =  "4: Very Much Agree",
+                                                             question_text = "I am taking the appropriate amount of precautions around COVID-19"), height = 275)
+    output$visual_feelings_severity <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                              variable_name = "feelings_severity",
+                                                              var1_rename =  "1: Very Much Disagree",
+                                                              var2_rename =  "4: Very Much Agree",
+                                                              question_text = "I think COVID-19 needs to be taken seriously"), height = 275)
+
+
   }
 )
