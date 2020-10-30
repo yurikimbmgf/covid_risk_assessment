@@ -2,6 +2,7 @@
     display: table;
     table-layout: fixed; /*Optional*/
     border-spacing: 10px; /*Optional*/
+	padding-left:25px;
 }
 .columnleft {
     display: table-cell;
