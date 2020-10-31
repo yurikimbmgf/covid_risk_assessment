@@ -4,11 +4,15 @@
 # https://stackoverflow.com/questions/49488228/how-to-show-spinning-wheel-or-busy-icon-while-waiting-in-shiny
 
 # Todo
-# Need to make it so Google Drive is the storage.....
-# Make it pretty? (Font colors, fonts themselves using webkit)
-# fix spacing between sections
-# Tweaks (making them all say OUTDOORS; Not February but March; Footer font size)
-# Tweak ("I wear a face mask any time I am INDOORS" - excluding your home)
+# correct the order of behavior (since before february and since february)
+# Fix ggplot visuals (text size, background color)
+# make it so you get a spinny thing to load the ggplots.
+
+# What's more intuitive? Asking "how comfortable are you with X" and then under it, "in the last month, have you done X" -OR- go through all the comfort qs then all the behavior qs?
+
+
+# HAVING A MULTIPLE OPTION SELECTION BREAKS EVERYTHING!!!!! I SPEND 2HRS TRYING TO MAKE IT RIGHT. JUST DROPPING THE QUESTION.
+
 
 # Packages ----------------------------------------------------------------
 library(tidyverse)
@@ -17,32 +21,6 @@ library(shinyjs)
 library(shinyWidgets)
 library(janitor)
 library(shinycssloaders)
-library(googlesheets4)
-library(googledrive)
-library(scales)
-library(ggthemes)
-
-# Getting Google Sheets to work -------------------------------------------
-options(
-  gargle_oob_default = TRUE, # from https://github.com/jennybc/googlesheets/issues/343#issuecomment-370202906
-  gargle_oauth_cache = ".secrets",
-  gargle_oauth_email = "yurickim@gmail.com",
-  gargle_quiet = FALSE
-)
-
-options(gargle_quiet = FALSE)
-
-# gs4_auth(
-#   email = gargle::gargle_oauth_email(),
-#   path = NULL,
-#   scopes = "https://www.googleapis.com/auth/spreadsheets",
-#   cache = gargle::gargle_oauth_cache(),
-#   use_oob = gargle::gargle_oob_default(),
-#   token = NULL
-# )
-# 4/5wGnxCij9h-Y2Unx6MYUGmif15fYOihEO_kOQh0mS6GWhnlYnREAAFs
-googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1JcgeXPfYdqlbCQ_jcV6D6Sj_LCRwMSIB610Vqzmi45I/edit#gid=1394247382")
-  
 
 
 # Prep --------------------------------------------------------------------
@@ -138,29 +116,25 @@ humanTime <- function() {
 
 # save the results to a file
 saveData <- function(data) {
-  googlesheets4::sheet_append("https://docs.google.com/spreadsheets/d/1JcgeXPfYdqlbCQ_jcV6D6Sj_LCRwMSIB610Vqzmi45I/edit#gid=1394247382", data)
+  fileName <- sprintf("%s_%s.csv",
+                      humanTime(),
+                      digest::digest(data))
+  
+  write.csv(x = data, file = file.path(responsesDir, fileName),
+            row.names = FALSE, quote = TRUE)
 }
 
-# save the results to a file
-# saveData <- function(data) {
-#   fileName <- sprintf("%s_%s.csv",
-#                       humanTime(),
-#                       digest::digest(data))
-#   
-#   write.csv(x = data, file = file.path(responsesDir, fileName),
-#             row.names = FALSE, quote = TRUE)
-# }
-
-
+# load all responses into a data.frame
 loadData <- function() {
-  # files <- list.files(file.path(responsesDir), full.names = TRUE)
-  # data <- lapply(files, read.csv, stringsAsFactors = FALSE)
-  # data <- do.call(rbind, data)
-  # data
-  data <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1JcgeXPfYdqlbCQ_jcV6D6Sj_LCRwMSIB610Vqzmi45I/edit#gid=1394247382")
+  files <- list.files(file.path(responsesDir), full.names = TRUE)
+  data <- lapply(files, read.csv, stringsAsFactors = FALSE)
+  #data <- dplyr::rbind_all(data)
+  data <- do.call(rbind, data)
   data
 }
 
+# directory where responses get stored
+responsesDir <- file.path("responses")
 
 # CSS to use in the app
 appCSS <-
@@ -171,6 +145,13 @@ appCSS <-
    body { background: #fcfcfc; }
    #header { background: #fff; border-bottom: 1px solid #ddd;  padding: 15px 15px 10px; }
   "
+# margin: -20px -15px 0;
+
+
+# usernames that are admins
+# adminUsers <- c("admin", "prof")
+
+
 
 # Functions to transform the responses to visuals
 func_visual_1to4 <- function(df_name, variable_name, question_text, var1_rename, var2_rename) {
@@ -367,14 +348,14 @@ states_list <- c("Alabama",
 # Shiny -------------------------------------------------------------------
 shinyApp(
   
-  
-  # UI ----------------------------------------------------------------------
+
+# UI ----------------------------------------------------------------------
   ui = fluidPage(
     theme = "style.css",
     shinyjs::useShinyjs(),
     shinyjs::inlineCSS(appCSS),
     title = "COVID-19 Risk Tolerance Survey",
-    
+
     div(id = "header",
         h1("COVID-19 Risk Tolerance Survey"),
         h4("Please take the short survey below about your comfort level, behaviors, and feelings about your actions.",
@@ -387,12 +368,12 @@ shinyApp(
            "Thanks for taking part in this little experiment!"
         ),
         div(
-          "(Have you already taken the survey and just want to see the results?", 
-          actionLink("skip_button", "Click Here"),
-          
-          ")"
+           "(Have you already taken the survey and just want to see the results?", 
+           actionLink("skip_button", "Click Here"),
+           
+           ")"
         )
-        
+
     ),
     
     fluidRow(
@@ -410,7 +391,7 @@ shinyApp(
                    div(class = "column",
                        radioGroupButtons("comfort_grocery", NULL, c(1:4), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                    div(class = "columnlabel", "Very Comfortable")
-               ),
+                   ),
                
                div(class = "questiontext", "Take a 3+ hour plane ride"),
                div(class = "rowquestion",
@@ -484,7 +465,7 @@ shinyApp(
                ),
                
                
-               
+
                # Section 2: behavior
                div(class = "spacer"),
                h4("Part 2: What Have You Done?"),
@@ -565,7 +546,7 @@ shinyApp(
                # Section 4: Feelings about COVID-19
                div(class = "spacer"),
                h4("Part 4: How Ya Feelin'?"),
-               div("Please rate how much you agree with the following statements."),
+               div("Please rate how much you agree with the following statements. 1 = Very much disagree; 4 = Very much agree"),
                
                div(class = "questiontext", "I am worried about catching COVID-19"),
                div(class = "rowquestion",
@@ -606,7 +587,7 @@ shinyApp(
                selectInput("about_age", "How old are you?",
                            c("Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+", "Prefer Not To Say")),
                selectInput("about_gender", "To which gender identity do you most identify?",
-                           c("Female", "Male", "Transgender", "Gender Variant / Non-Conforming", "Prefer Not To Say")),
+                           c("Female", "Male", "Transgender", "Gender Variant / Non-Conforming", "Prefer Not To")),
                radioButtons("about_job", "I am a frontline worker.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
                radioButtons("about_health", "I have a health condition that makes me a high-risk of a serious illness from COVID-19.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
                
@@ -647,9 +628,9 @@ shinyApp(
       )
     )
   ),
-  
-  
-  # Server ------------------------------------------------------------------
+
+
+# Server ------------------------------------------------------------------
   server = function(input, output, session) {
     
     # Enable the Submit button when all mandatory fields are filled out
@@ -669,11 +650,7 @@ shinyApp(
     formData <- reactive({
       data <- sapply(fieldsAll, function(x) input[[x]])
       data <- c(data, timestamp = epochTime())
-      data <- t(data) %>% 
-        as_tibble() %>% 
-        mutate_at(vars(comfort_grocery:comfort_personal), as.numeric) %>% 
-        mutate_at(vars(mask_indoor:feelings_severity), as.numeric) %>% 
-        mutate(timestamp = as.numeric(timestamp))
+      data <- t(data)
       data
     })
     
@@ -687,13 +664,7 @@ shinyApp(
       
       # Save the data (show an error message in case of error)
       tryCatch({
-        # merged_data <<- loadData() %>% 
-        #   bind_rows()
-        
         saveData(formData())
-        
-        merged_data <<- loadData()
-        
         shinyjs::reset("form")
         shinyjs::hide("form")
         shinyjs::show("thankyou_msg")
@@ -707,8 +678,40 @@ shinyApp(
         shinyjs::hide("submit_msg")
       })
     })
-
     
+    
+    # Jump straight to results
+    observeEvent(input$skip_button, {
+      
+      # User-experience stuff
+      shinyjs::disable("submit")
+      shinyjs::show("submit_msg")
+      shinyjs::hide("error")
+      
+      # Save the data (show an error message in case of error)
+      tryCatch({
+        saveData(formData())
+        shinyjs::reset("form")
+        shinyjs::hide("form")
+        shinyjs::show("thankyou_msg")
+      },
+      error = function(err) {
+        shinyjs::html("error_msg", err$message)
+        shinyjs::show(id = "error", anim = TRUE, animType = "fade")
+      },
+      finally = {
+        shinyjs::enable("submit")
+        shinyjs::hide("submit_msg")
+      })
+    })
+    
+    # submit another response
+    observeEvent(input$submit_another, {
+      shinyjs::show("form")
+      shinyjs::hide("thankyou_msg")
+    })
+
+
     # render Results
     observeEvent(input$submit, {
       output$adminPanelContainer <- renderUI({
@@ -753,36 +756,11 @@ shinyApp(
           plotOutput("visual_feelings_precaution", height = 310, width = "100%"),
           plotOutput("visual_feelings_severity", height = 310, width = "100%")
           
-          
+
         )
-      })}
+    })}
     )
-    
-    
-    observeEvent(input$skip_button, {
-      # User-experience stuff
-      shinyjs::disable("submit")
-      shinyjs::show("submit_msg")
-      shinyjs::hide("error")
-      
-      # Hide the form and show a thank you message.
-      tryCatch({
-        # saveData(formData())
-        pulled_data <<- loadData()
-        shinyjs::reset("form")
-        shinyjs::hide("form")
-        shinyjs::show("thankyou_msg")
-      },
-      error = function(err) {
-        shinyjs::html("error_msg", err$message)
-        shinyjs::show(id = "error", anim = TRUE, animType = "fade")
-      },
-      finally = {
-        shinyjs::enable("submit")
-        shinyjs::hide("submit_msg")
-      })
-    })
-    
+
     # Only results - no highlights
     observeEvent(input$skip_button, {
       output$adminPanelContainer <- renderUI({
@@ -799,7 +777,7 @@ shinyApp(
           plotOutput("nohighlight_visual_comfort_event_out", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_comfort_medical", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_comfort_personal", height = 310, width = "100%"),
-
+          
           div(class = "spacer"),
           h4("Part 2: What Have You Done?"),
           div("When was the last time you did any of the following?"),
@@ -812,13 +790,13 @@ shinyApp(
           plotOutput("nohighlight_visual_behavior_event_out", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_behavior_medical", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_behavior_personal", height = 310, width = "100%"),
-
+          
           div(class = "spacer"),
           h4("Part 3: What's On Your Face?"),
           div("Please describe your face masking wearing habits."),
           plotOutput("nohighlight_visual_mask_indoor", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_mask_outdoor", height = 310, width = "100%"),
-
+          
           div(class = "spacer"),
           h4("Part 4: How Ya Feelin'?"),
           div("Please describe your face masking wearing habits."),
@@ -834,96 +812,219 @@ shinyApp(
     
     # All the visuals
     # COMFORT
-    output$visual_comfort_grocery <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$visual_comfort_grocery <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_grocery",
                                                                  question_text = "Comfort: Grocery shopping in-store",
                                                                  var1_rename =  "1: Very Uncomfortable",
                                                                  var2_rename =  "4: Very Comfortable"), height = 275, width = 500)
-    output$visual_comfort_plane <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                               variable_name = "comfort_plane",
+    output$visual_comfort_plane <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_plane",
                                                                var1_rename =  "1: Very Uncomfortable",
                                                                var2_rename =  "4: Very Comfortable",
-                                                               question_text = "Comfort: Take a 3+ hour plane ride"), height = 275, width = 500)
-    output$visual_comfort_restaurant_in <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                                       variable_name = "comfort_restaurant_in",
-                                                                       var1_rename =  "1: Very Uncomfortable",
-                                                                       var2_rename =  "4: Very Comfortable",
-                                                                       question_text = "Comfort: Eating at an restaurant INDOORS"), height = 275, width = 500)
-    output$visual_comfort_restaurant_out <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                                        variable_name = "comfort_restaurant_out",
-                                                                        var1_rename =  "1: Very Uncomfortable",
-                                                                        var2_rename =  "4: Very Comfortable",
-                                                                        question_text = "Comfort: Eating at an restaurant OUTDOORS"), height = 275, width = 500)
-    output$visual_comfort_friends_in <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                                    variable_name = "comfort_friends_in",
-                                                                    var1_rename =  "1: Very Uncomfortable",
-                                                                    var2_rename =  "4: Very Comfortable",
-                                                                    question_text = "Comfort: Seeing friends/family INDOORS"), height = 275, width = 500)
-    output$visual_comfort_friends_out <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                                     variable_name = "comfort_friends_out",
-                                                                     var1_rename =  "1: Very Uncomfortable",
-                                                                     var2_rename =  "4: Very Comfortable",
-                                                                     question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275, width = 500)
-    output$visual_comfort_event_in <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                                  variable_name = "comfort_event_in",
-                                                                  var1_rename =  "1: Very Uncomfortable",
-                                                                  var2_rename =  "4: Very Comfortable",
-                                                                  question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"), height = 275, width = 500)
-    output$visual_comfort_event_out <- renderPlot(func_visual_1to4(df_name = merged_data,
-                                                                   variable_name = "comfort_event_out",
-                                                                   var1_rename =  "1: Very Uncomfortable",
-                                                                   var2_rename =  "4: Very Comfortable",
-                                                                   question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"), height = 275, width = 500)
-    output$visual_comfort_medical <- renderPlot(func_visual_1to4(df_name = merged_data,
+                                                                 question_text = "Comfort: Take a 3+ hour plane ride"), height = 275, width = 500)
+    output$visual_comfort_restaurant_in <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_restaurant_in",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Eating at an restaurant INDOORS"), height = 275, width = 500)
+    output$visual_comfort_restaurant_out <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_restaurant_out",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Eating at an restaurant OUTDOORS"), height = 275, width = 500)
+    output$visual_comfort_friends_in <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_friends_in",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Seeing friends/family INDOORS"), height = 275, width = 500)
+    output$visual_comfort_friends_out <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_friends_out",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275, width = 500)
+    output$visual_comfort_event_in <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_event_in",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"), height = 275, width = 500)
+    output$visual_comfort_event_out <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_event_out",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"), height = 275, width = 500)
+    output$visual_comfort_medical <- renderPlot(func_visual_1to4(df_name = loadData(),
                                                                  variable_name = "comfort_medical",
                                                                  var1_rename =  "1: Very Uncomfortable",
                                                                  var2_rename =  "4: Very Comfortable",
                                                                  question_text = "Comfort: Receiving elective medical treatments (dental cleanings, check-ups, etc.)"), height = 275, width = 500)
-    output$visual_comfort_personal <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$visual_comfort_personal <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_personal",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Receiving personal services (haircuts, manicures, etc.)"), height = 275, width = 500)
+    
+    # BEHAVIOR
+    output$visual_behavior_grocery <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                 variable_name = "behavior_grocery",
+                                                                 question_text = "I have done grocery shopping in-store..."), height = 275, width = 500)
+    output$visual_behavior_plane <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_plane",
+                                                                      question_text = "I have taken a 3+ hour plane ride..."), height = 275, width = 500)
+    output$visual_behavior_restaurant_in <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_restaurant_in",
+                                                                      question_text = "I have eaten at a restaurant INDOORS..."), height = 275, width = 500)
+    output$visual_behavior_restaurant_out <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_restaurant_out",
+                                                                      question_text = "I have eaten at a restaurant OUTDOORS..."), height = 275, width = 500)
+    output$visual_behavior_friends_in <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_friends_in",
+                                                                      question_text = "I have seen family/friends INDOORS..."), height = 275, width = 500)
+    output$visual_behavior_friends_out <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_friends_out",
+                                                                      question_text = "I have seen family/friends OUTDOORS..."), height = 275, width = 500)
+    output$visual_behavior_event_in <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_event_in",
+                                                                      question_text = "I have attended a large event that is partially or fully INDOORS..."), height = 275, width = 500)
+    output$visual_behavior_event_out <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_event_out",
+                                                                      question_text = "I have attended a large event that is partially or fully OUTDOORS..."), height = 275, width = 500)
+    output$visual_behavior_medical <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_medical",
+                                                                      question_text = "I have recieved elective medical treatments..."), height = 275, width = 500)
+    output$visual_behavior_personal <- renderPlot(func_visual_behavior(df_name = loadData(),
+                                                                      variable_name = "behavior_personal",
+                                                                      question_text = "I have recieved personal services..."), height = 275, width = 500)
+    
+    # MASK
+    output$visual_mask_indoor <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "mask_indoor",
+                                                             var1_rename =  "1: I Never Wear a Face Mask",
+                                                             var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
+                                                                 question_text = "I wear a face mask any time I am INDOORS"), height = 275, width = 500)
+    output$visual_mask_outdoor <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                             variable_name = "mask_outdoor",
+                                                             var1_rename =  "1: I Never Wear a Face Mask",
+                                                             var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
+                                                             question_text = "I wear a face mask any time I am OUTDOORS"), height = 275, width = 500)
+
+    
+    # FEELING
+    output$visual_feelings_catch <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                             variable_name = "feelings_catch",
+                                                             var1_rename =  "1: Very Much Disagree",
+                                                             var2_rename =  "4: Very Much Agree",
+                                                             question_text = "I am worried about catching COVID-19"), height = 275, width = 500)
+    output$visual_feelings_spread <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                              variable_name = "feelings_spread",
+                                                              var1_rename =  "1: Very Much Disagree",
+                                                              var2_rename =  "4: Very Much Agree",
+                                                              question_text = "I am worried about being a spreader of COVID-19"), height = 275, width = 500)
+    output$visual_feelings_precaution <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                             variable_name = "feelings_precaution",
+                                                             var1_rename =  "1: Very Much Disagree",
+                                                             var2_rename =  "4: Very Much Agree",
+                                                             question_text = "I am taking the appropriate amount of precautions around COVID-19"), height = 275, width = 500)
+    output$visual_feelings_severity <- renderPlot(func_visual_1to4(df_name = loadData(),
+                                                              variable_name = "feelings_severity",
+                                                              var1_rename =  "1: Very Much Disagree",
+                                                              var2_rename =  "4: Very Much Agree",
+                                                              question_text = "I think COVID-19 needs to be taken seriously"), height = 275, width = 500)
+
+    
+    
+
+# No highlight visuals reactive -------------------------------------------
+
+    output$nohighlight_visual_comfort_grocery <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_grocery",
+                                                                 question_text = "Comfort: Grocery shopping in-store",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_plane <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                               variable_name = "comfort_plane",
+                                                               var1_rename =  "1: Very Uncomfortable",
+                                                               var2_rename =  "4: Very Comfortable",
+                                                               question_text = "Comfort: Take a 3+ hour plane ride"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_restaurant_in <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                       variable_name = "comfort_restaurant_in",
+                                                                       var1_rename =  "1: Very Uncomfortable",
+                                                                       var2_rename =  "4: Very Comfortable",
+                                                                       question_text = "Comfort: Eating at an restaurant INDOORS"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_restaurant_out <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                        variable_name = "comfort_restaurant_out",
+                                                                        var1_rename =  "1: Very Uncomfortable",
+                                                                        var2_rename =  "4: Very Comfortable",
+                                                                        question_text = "Comfort: Eating at an restaurant OUTDOORS"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_friends_in <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                    variable_name = "comfort_friends_in",
+                                                                    var1_rename =  "1: Very Uncomfortable",
+                                                                    var2_rename =  "4: Very Comfortable",
+                                                                    question_text = "Comfort: Seeing friends/family INDOORS"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_friends_out <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                     variable_name = "comfort_friends_out",
+                                                                     var1_rename =  "1: Very Uncomfortable",
+                                                                     var2_rename =  "4: Very Comfortable",
+                                                                     question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_event_in <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                  variable_name = "comfort_event_in",
+                                                                  var1_rename =  "1: Very Uncomfortable",
+                                                                  var2_rename =  "4: Very Comfortable",
+                                                                  question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_event_out <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                   variable_name = "comfort_event_out",
+                                                                   var1_rename =  "1: Very Uncomfortable",
+                                                                   var2_rename =  "4: Very Comfortable",
+                                                                   question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_medical <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
+                                                                 variable_name = "comfort_medical",
+                                                                 var1_rename =  "1: Very Uncomfortable",
+                                                                 var2_rename =  "4: Very Comfortable",
+                                                                 question_text = "Comfort: Receiving elective medical treatments (dental cleanings, check-ups, etc.)"), height = 275, width = 500)
+    output$nohighlight_visual_comfort_personal <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                                   variable_name = "comfort_personal",
                                                                   var1_rename =  "1: Very Uncomfortable",
                                                                   var2_rename =  "4: Very Comfortable",
                                                                   question_text = "Comfort: Receiving personal services (haircuts, manicures, etc.)"), height = 275, width = 500)
     
     # BEHAVIOR
-    output$visual_behavior_grocery <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_grocery <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                       variable_name = "behavior_grocery",
                                                                       question_text = "I have done grocery shopping in-store..."), height = 275, width = 500)
-    output$visual_behavior_plane <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_plane <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                     variable_name = "behavior_plane",
                                                                     question_text = "I have taken a 3+ hour plane ride..."), height = 275, width = 500)
-    output$visual_behavior_restaurant_in <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_restaurant_in <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                             variable_name = "behavior_restaurant_in",
                                                                             question_text = "I have eaten at a restaurant INDOORS..."), height = 275, width = 500)
-    output$visual_behavior_restaurant_out <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_restaurant_out <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                              variable_name = "behavior_restaurant_out",
                                                                              question_text = "I have eaten at a restaurant OUTDOORS..."), height = 275, width = 500)
-    output$visual_behavior_friends_in <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_friends_in <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                          variable_name = "behavior_friends_in",
                                                                          question_text = "I have seen family/friends INDOORS..."), height = 275, width = 500)
-    output$visual_behavior_friends_out <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_friends_out <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                           variable_name = "behavior_friends_out",
                                                                           question_text = "I have seen family/friends OUTDOORS..."), height = 275, width = 500)
-    output$visual_behavior_event_in <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_event_in <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                        variable_name = "behavior_event_in",
                                                                        question_text = "I have attended a large event that is partially or fully INDOORS..."), height = 275, width = 500)
-    output$visual_behavior_event_out <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_event_out <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                         variable_name = "behavior_event_out",
                                                                         question_text = "I have attended a large event that is partially or fully OUTDOORS..."), height = 275, width = 500)
-    output$visual_behavior_medical <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_medical <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                       variable_name = "behavior_medical",
                                                                       question_text = "I have recieved elective medical treatments..."), height = 275, width = 500)
-    output$visual_behavior_personal <- renderPlot(func_visual_behavior(df_name = merged_data,
+    output$nohighlight_visual_behavior_personal <- renderPlot(func_nohighlight_visual_behavior(df_name = loadData(),
                                                                        variable_name = "behavior_personal",
                                                                        question_text = "I have recieved personal services..."), height = 275, width = 500)
     
     # MASK
-    output$visual_mask_indoor <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$nohighlight_visual_mask_indoor <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                              variable_name = "mask_indoor",
                                                              var1_rename =  "1: I Never Wear a Face Mask",
                                                              var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
                                                              question_text = "I wear a face mask any time I am INDOORS"), height = 275, width = 500)
-    output$visual_mask_outdoor <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$nohighlight_visual_mask_outdoor <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                               variable_name = "mask_outdoor",
                                                               var1_rename =  "1: I Never Wear a Face Mask",
                                                               var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
@@ -931,149 +1032,26 @@ shinyApp(
     
     
     # FEELING
-    output$visual_feelings_catch <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$nohighlight_visual_feelings_catch <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                                 variable_name = "feelings_catch",
                                                                 var1_rename =  "1: Very Much Disagree",
                                                                 var2_rename =  "4: Very Much Agree",
                                                                 question_text = "I am worried about catching COVID-19"), height = 275, width = 500)
-    output$visual_feelings_spread <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$nohighlight_visual_feelings_spread <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                                  variable_name = "feelings_spread",
                                                                  var1_rename =  "1: Very Much Disagree",
                                                                  var2_rename =  "4: Very Much Agree",
                                                                  question_text = "I am worried about being a spreader of COVID-19"), height = 275, width = 500)
-    output$visual_feelings_precaution <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$nohighlight_visual_feelings_precaution <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                                      variable_name = "feelings_precaution",
                                                                      var1_rename =  "1: Very Much Disagree",
                                                                      var2_rename =  "4: Very Much Agree",
                                                                      question_text = "I am taking the appropriate amount of precautions around COVID-19"), height = 275, width = 500)
-    output$visual_feelings_severity <- renderPlot(func_visual_1to4(df_name = merged_data,
+    output$nohighlight_visual_feelings_severity <- renderPlot(func_nohighlight_visual_1to4(df_name = loadData(),
                                                                    variable_name = "feelings_severity",
                                                                    var1_rename =  "1: Very Much Disagree",
                                                                    var2_rename =  "4: Very Much Agree",
-                                                                   question_text = "I think COVID-19 needs to be taken seriously"), height = 275, width = 500)
-    
-    
-    
-    
-    # No highlight visuals reactive -------------------------------------------
+                                                                   question_text = "I think COVID-19 needs to be taken seriously"), height = 275, width = 500)    
 
-    output$nohighlight_visual_comfort_grocery <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                         variable_name = "comfort_grocery",
-                                                                                         question_text = "Comfort: Grocery shopping in-store",
-                                                                                         var1_rename =  "1: Very Uncomfortable",
-                                                                                         var2_rename =  "4: Very Comfortable"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_plane <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                       variable_name = "comfort_plane",
-                                                                                       var1_rename =  "1: Very Uncomfortable",
-                                                                                       var2_rename =  "4: Very Comfortable",
-                                                                                       question_text = "Comfort: Take a 3+ hour plane ride"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_restaurant_in <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                               variable_name = "comfort_restaurant_in",
-                                                                                               var1_rename =  "1: Very Uncomfortable",
-                                                                                               var2_rename =  "4: Very Comfortable",
-                                                                                               question_text = "Comfort: Eating at an restaurant INDOORS"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_restaurant_out <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                                variable_name = "comfort_restaurant_out",
-                                                                                                var1_rename =  "1: Very Uncomfortable",
-                                                                                                var2_rename =  "4: Very Comfortable",
-                                                                                                question_text = "Comfort: Eating at an restaurant OUTDOORS"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_friends_in <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                            variable_name = "comfort_friends_in",
-                                                                                            var1_rename =  "1: Very Uncomfortable",
-                                                                                            var2_rename =  "4: Very Comfortable",
-                                                                                            question_text = "Comfort: Seeing friends/family INDOORS"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_friends_out <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                             variable_name = "comfort_friends_out",
-                                                                                             var1_rename =  "1: Very Uncomfortable",
-                                                                                             var2_rename =  "4: Very Comfortable",
-                                                                                             question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_event_in <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                          variable_name = "comfort_event_in",
-                                                                                          var1_rename =  "1: Very Uncomfortable",
-                                                                                          var2_rename =  "4: Very Comfortable",
-                                                                                          question_text = "Comfort: Attending large events (30+ people) that take place partially\nor fully INDOORS (weddings, parties, etc.)"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_event_out <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                           variable_name = "comfort_event_out",
-                                                                                           var1_rename =  "1: Very Uncomfortable",
-                                                                                           var2_rename =  "4: Very Comfortable",
-                                                                                           question_text = "Comfort: Attending large events (30+ people) that take place fully\nOUTDOORS (weddings, parties, etc.)"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_medical <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                         variable_name = "comfort_medical",
-                                                                                         var1_rename =  "1: Very Uncomfortable",
-                                                                                         var2_rename =  "4: Very Comfortable",
-                                                                                         question_text = "Comfort: Receiving elective medical treatments (dental cleanings, check-ups, etc.)"), height = 275, width = 500)
-    output$nohighlight_visual_comfort_personal <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                          variable_name = "comfort_personal",
-                                                                                          var1_rename =  "1: Very Uncomfortable",
-                                                                                          var2_rename =  "4: Very Comfortable",
-                                                                                          question_text = "Comfort: Receiving personal services (haircuts, manicures, etc.)"), height = 275, width = 500)
-
-    # BEHAVIOR
-    output$nohighlight_visual_behavior_grocery <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                              variable_name = "behavior_grocery",
-                                                                                              question_text = "I have done grocery shopping in-store..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_plane <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                            variable_name = "behavior_plane",
-                                                                                            question_text = "I have taken a 3+ hour plane ride..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_restaurant_in <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                                    variable_name = "behavior_restaurant_in",
-                                                                                                    question_text = "I have eaten at a restaurant INDOORS..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_restaurant_out <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                                     variable_name = "behavior_restaurant_out",
-                                                                                                     question_text = "I have eaten at a restaurant OUTDOORS..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_friends_in <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                                 variable_name = "behavior_friends_in",
-                                                                                                 question_text = "I have seen family/friends INDOORS..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_friends_out <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                                  variable_name = "behavior_friends_out",
-                                                                                                  question_text = "I have seen family/friends OUTDOORS..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_event_in <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                               variable_name = "behavior_event_in",
-                                                                                               question_text = "I have attended a large event that is partially or fully INDOORS..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_event_out <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                                variable_name = "behavior_event_out",
-                                                                                                question_text = "I have attended a large event that is partially or fully OUTDOORS..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_medical <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                              variable_name = "behavior_medical",
-                                                                                              question_text = "I have recieved elective medical treatments..."), height = 275, width = 500)
-    output$nohighlight_visual_behavior_personal <- renderPlot(func_nohighlight_visual_behavior(df_name = pulled_data,
-                                                                                               variable_name = "behavior_personal",
-                                                                                               question_text = "I have recieved personal services..."), height = 275, width = 500)
-
-    # MASK
-    output$nohighlight_visual_mask_indoor <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                     variable_name = "mask_indoor",
-                                                                                     var1_rename =  "1: I Never Wear a Face Mask",
-                                                                                     var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
-                                                                                     question_text = "I wear a face mask any time I am INDOORS"), height = 275, width = 500)
-    output$nohighlight_visual_mask_outdoor <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                      variable_name = "mask_outdoor",
-                                                                                      var1_rename =  "1: I Never Wear a Face Mask",
-                                                                                      var2_rename =  "4: I Wear a Face Mask\n100% of the Time",
-                                                                                      question_text = "I wear a face mask any time I am OUTDOORS"), height = 275, width = 500)
-
-
-    # FEELING
-    output$nohighlight_visual_feelings_catch <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                        variable_name = "feelings_catch",
-                                                                                        var1_rename =  "1: Very Much Disagree",
-                                                                                        var2_rename =  "4: Very Much Agree",
-                                                                                        question_text = "I am worried about catching COVID-19"), height = 275, width = 500)
-    output$nohighlight_visual_feelings_spread <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                         variable_name = "feelings_spread",
-                                                                                         var1_rename =  "1: Very Much Disagree",
-                                                                                         var2_rename =  "4: Very Much Agree",
-                                                                                         question_text = "I am worried about being a spreader of COVID-19"), height = 275, width = 500)
-    output$nohighlight_visual_feelings_precaution <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                             variable_name = "feelings_precaution",
-                                                                                             var1_rename =  "1: Very Much Disagree",
-                                                                                             var2_rename =  "4: Very Much Agree",
-                                                                                             question_text = "I am taking the appropriate amount of precautions around COVID-19"), height = 275, width = 500)
-    output$nohighlight_visual_feelings_severity <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
-                                                                                           variable_name = "feelings_severity",
-                                                                                           var1_rename =  "1: Very Much Disagree",
-                                                                                           var2_rename =  "4: Very Much Agree",
-                                                                                           question_text = "I think COVID-19 needs to be taken seriously"), height = 275, width = 500)    
-    
   }
 )
