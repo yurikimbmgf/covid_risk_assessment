@@ -4,7 +4,6 @@
 # https://stackoverflow.com/questions/49488228/how-to-show-spinning-wheel-or-busy-icon-while-waiting-in-shiny
 
 # Todo
-# Need to make it so Google Drive is the storage.....
 # Make it pretty? (Font colors, fonts themselves using webkit)
 # fix spacing between sections
 # Tweaks (making them all say OUTDOORS; Not February but March; Footer font size)
@@ -373,10 +372,15 @@ shinyApp(
     theme = "style.css",
     shinyjs::useShinyjs(),
     shinyjs::inlineCSS(appCSS),
-    title = "COVID-19 Risk Tolerance Survey",
+    title = "COVID-19 Comfort Study",
+    # google font
+    tags$link(
+      rel = "stylesheet", 
+      href="https://fonts.googleapis.com/css2?family=Raleway:wght@200&display=swap"
+    ),
     
     div(id = "header",
-        h1("COVID-19 Risk Tolerance Survey"),
+        h1("COVID-19 COMFORT STUDY", style = "font-family: 'Raleway', sans-serif;"),
         h4("Please take the short survey below about your comfort level, behaviors, and feelings about your actions.",
            br(),
            "After you submit your answers, you'll how your responses compare to others who have taken the survey!",
