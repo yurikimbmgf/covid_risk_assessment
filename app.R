@@ -30,26 +30,6 @@ saveRDS(token, file = "token.rds")
 drop_dir('covid_survey_responses')
 # rdrop2::drop_read_csv('covid_survey_responses/dummy.csv')
 
-# # Getting Google Sheets to work -------------------------------------------
-# options(
-#   gargle_oob_default = TRUE, # from https://github.com/jennybc/googlesheets/issues/343#issuecomment-370202906
-#   gargle_oauth_cache = ".secrets",
-#   gargle_oauth_email = "yurickim@gmail.com",
-#   gargle_quiet = FALSE
-# )
-# 
-# options(gargle_quiet = FALSE)
-# 
-# gs4_auth(
-#   email = gargle::gargle_oauth_email(),
-#   path = NULL,
-#   scopes = "https://www.googleapis.com/auth/spreadsheets",
-#   cache = gargle::gargle_oauth_cache(),
-#   use_oob = gargle::gargle_oob_default(),
-#   token = NULL
-# )
-# # 4/5wGnxCij9h-Y2Unx6MYUGmif15fYOihEO_kOQh0mS6GWhnlYnREAAFs
-
 # Prep --------------------------------------------------------------------
 # which fields get saved 
 fieldsAll <- c("comfort_grocery",
@@ -142,20 +122,38 @@ humanTime <- function() {
 }
 
 # save the results to a file
+# saveData <- function(data) {
+#   fileName <- sprintf("%s_%s.csv",
+#                       humanTime(),
+#                       digest::digest(data))
+#   
+#   write.csv(x = data, file = file.path(responsesDir, fileName),
+#             row.names = FALSE, quote = TRUE)
+# }
+
 saveData <- function(data) {
   fileName <- sprintf("%s_%s.csv",
                       humanTime(),
                       digest::digest(data))
-  
-  write.csv(x = data, file = file.path(responsesDir, fileName),
-            row.names = FALSE, quote = TRUE)
-}
+  write.csv(x = data, file = data)
+  drop_upload(data, path = "drop_test")
+  }
+# rdrop2::drop_read_csv('covid_survey_responses/dummy.csv')
+
 
 # load all responses into a data.frame
+# loadData <- function() {
+#   files <- list.files(file.path(responsesDir), full.names = TRUE)
+#   data <- lapply(files, read.csv, stringsAsFactors = FALSE)
+#   #data <- dplyr::rbind_all(data)
+#   data <- do.call(rbind, data)
+#   data
+# }
+
+
 loadData <- function() {
   files <- list.files(file.path(responsesDir), full.names = TRUE)
-  data <- lapply(files, read.csv, stringsAsFactors = FALSE)
-  #data <- dplyr::rbind_all(data)
+  data <- lapply(paste0("covid_survey_responses/", drop_dir('covid_survey_responses')$name), drop_read_csv)
   data <- do.call(rbind, data)
   data
 }
