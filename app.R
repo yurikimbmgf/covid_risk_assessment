@@ -3,11 +3,7 @@
 # http://shinyapps.dreamrs.fr/shinyWidgets/
 # https://stackoverflow.com/questions/49488228/how-to-show-spinning-wheel-or-busy-icon-while-waiting-in-shiny
 
-# Todo
-# Make it pretty? (Font colors, fonts themselves using webkit)
-# fix spacing between sections
-# Tweaks (making them all say OUTDOORS; Not February but March; Footer font size)
-# Tweak ("I wear a face mask any time I am INDOORS" - excluding your home)
+
 
 # Packages ----------------------------------------------------------------
 library(tidyverse)
@@ -77,7 +73,9 @@ fieldsAll <- c("comfort_grocery",
                "about_age",
                "about_gender",
                "about_job",
-               "about_health"
+               "about_health",
+               "about_covid_had",
+               "about_covid_know"
 )
 
 
@@ -114,7 +112,10 @@ fieldsMandatory <- c("comfort_grocery",
                      "about_age",
                      "about_gender",
                      "about_job",
-                     "about_health")
+                     "about_health",
+                     "about_covid_had",
+                     "about_covid_know"
+)
 
 # add an asterisk to an input label
 labelMandatory <- function(label) {
@@ -168,13 +169,14 @@ appCSS <-
    #submit_msg { margin-left: 15px; }
    #error { color: red; }
    body { background: #fcfcfc; }
-   #header { background: #fff; border-bottom: 1px solid #ddd;  padding: 15px 15px 10px; }
+   #header {background: #ebf1f5; padding: 10px; margin-left:0px; border-top: 6px solid #435e70;  border-bottom: 1px solid #435e70; }
   "
 
 # Functions to transform the responses to visuals
 func_visual_1to4 <- function(df_name, variable_name, question_text, var1_rename, var2_rename) {
   df <- tabyl(df_name, variable_name) %>% 
     rename(choice = variable_name) %>% 
+    full_join(data.frame(choice = c(1:4)), by = "choice") %>%  # fix for if there is no data
     mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ "#e88f00",
                                  TRUE ~ "#124d47")) %>% 
     mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.numeric() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
@@ -191,12 +193,13 @@ func_visual_1to4 <- function(df_name, variable_name, question_text, var1_rename,
              color = bar_color,
              label = your_selection)) +
     geom_bar(stat = "identity") +
+    scale_x_discrete(drop=F) +
     geom_text(vjust = -1) +
     scale_fill_identity() +
     scale_color_identity() +
     scale_y_continuous(label = percent) +
     theme_fivethirtyeight() +
-    coord_cartesian(ylim = c(0, 1)) +
+    coord_cartesian(ylim = c(0, 1.05)) +
     labs(title = question_text,
          caption = paste0("(Total Responses: ", sum(df$n), ")")
     ) +
@@ -212,11 +215,12 @@ func_visual_1to4 <- function(df_name, variable_name, question_text, var1_rename,
 func_visual_behavior <- function(df_name, variable_name, question_text) {
   df <- tabyl(df_name, variable_name) %>% 
     rename(choice = variable_name) %>% 
+    full_join(data.frame(choice = c("in the last month", "in the last quarter", "since April 1st", "since before April 1st")), by = "choice") %>%  # fix for if there is no data
     mutate(bar_color = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.character() ~ "#e88f00",
                                  TRUE ~ "#124d47")) %>% 
     mutate(your_selection = case_when(choice == df_name %>% filter(timestamp == max(timestamp)) %>% select(variable_name) %>% as.character() ~ paste0(percent(percent, accuracy = 1), " (Your pick)"),
                                       TRUE ~ percent(percent, accuracy = 1))) %>% 
-    mutate(choice = fct_relevel(choice, "in the last month", "in the last quarter", "since February", "since before February"))
+    mutate(choice = fct_relevel(choice, "in the last month", "in the last quarter", "since April 1st", "since before April 1st"))
   
   ggplot(data = df,
          aes(x = choice, 
@@ -229,10 +233,11 @@ func_visual_behavior <- function(df_name, variable_name, question_text) {
     scale_fill_identity() +
     scale_color_identity() +
     scale_y_continuous(label = percent) +
+    scale_x_discrete(drop=F) +
     theme_fivethirtyeight() +
-    coord_cartesian(ylim = c(0, 1)) +
+    coord_cartesian(ylim = c(0, 1.05)) +
     labs(title = question_text,
-         caption = paste0("(Total Responses: ", sum(df$n), ")" )
+         caption = paste0("(Total Responses: ", sum(df$n, na.rm = T), ")" )
     ) +
     theme(plot.title = element_text(size=12),
           plot.background = element_rect(fill = "#fdfdfd"),
@@ -243,12 +248,11 @@ func_visual_behavior <- function(df_name, variable_name, question_text) {
 }
 
 
-
-
 # Visuals without bar colors ----------------------------------------------
 func_nohighlight_visual_1to4 <- function(df_name, variable_name, question_text, var1_rename, var2_rename) {
   df <- tabyl(df_name, variable_name) %>% 
     rename(choice = variable_name) %>% 
+    full_join(data.frame(choice = c(1:4)), by = "choice") %>%  # fix for if there is no data
     mutate(bar_color = "#124d47") %>% 
     mutate(your_selection = percent(percent, accuracy = 1)) %>% 
     mutate(choice = case_when(choice == 1 ~ var1_rename, 
@@ -268,7 +272,7 @@ func_nohighlight_visual_1to4 <- function(df_name, variable_name, question_text, 
     scale_color_identity() +
     scale_y_continuous(label = percent) +
     theme_fivethirtyeight() +
-    coord_cartesian(ylim = c(0, 1)) +
+    coord_cartesian(ylim = c(0, 1.05)) +
     labs(title = question_text,
          caption = paste0("(Total Responses: ", sum(df$n), ")")
     ) +
@@ -282,9 +286,10 @@ func_nohighlight_visual_1to4 <- function(df_name, variable_name, question_text, 
 func_nohighlight_visual_behavior <- function(df_name, variable_name, question_text) {
   df <- tabyl(df_name, variable_name) %>% 
     rename(choice = variable_name) %>% 
+    full_join(data.frame(choice = c("in the last month", "in the last quarter", "since April 1st", "since before April 1st")), by = "choice") %>%  # fix for if there is no data
     mutate(bar_color = "#124d47") %>% 
     mutate(your_selection = percent(percent, accuracy = 1)) %>% 
-    mutate(choice = fct_relevel(choice, "in the last month", "in the last quarter", "since February", "since before February"))
+    mutate(choice = fct_relevel(choice, "in the last month", "in the last quarter", "since April 1st", "since before April 1st"))
   
   ggplot(data = df,
          aes(x = choice, 
@@ -298,11 +303,14 @@ func_nohighlight_visual_behavior <- function(df_name, variable_name, question_te
     scale_color_identity() +
     scale_y_continuous(label = percent) +
     theme_fivethirtyeight() +
-    coord_cartesian(ylim = c(0, 1)) +
+    coord_cartesian(ylim = c(0, 1.05)) +
     labs(title = question_text,
          caption = paste0("(Total Responses: ", sum(df$n), ")" )
     ) +
     theme(plot.title = element_text(size=12),
+          plot.background = element_rect(fill = "#fdfdfd"),
+          panel.grid.major.x = element_blank(),
+          panel.background = element_rect(fill = "#fdfdfd"),
           plot.caption = element_text(hjust = 0, face = "italic"))
 }
 
@@ -368,7 +376,7 @@ shinyApp(
   
   
   # UI ----------------------------------------------------------------------
-  ui = fluidPage(
+  ui = fixedPage(
     theme = "style.css",
     shinyjs::useShinyjs(),
     shinyjs::inlineCSS(appCSS),
@@ -379,34 +387,35 @@ shinyApp(
       href="https://fonts.googleapis.com/css2?family=Raleway:wght@200&display=swap"
     ),
     
-    div(id = "header",
-        h1("COVID-19 COMFORT STUDY", style = "font-family: 'Raleway', sans-serif;"),
-        h4("Please take the short survey below about your comfort level, behaviors, and feelings about your actions.",
-           br(),
-           "After you submit your answers, you'll how your responses compare to others who have taken the survey!",
-           br(),
-           strong("Please note that all answers are required!"),
-           br(),
-           br(),
-           "Thanks for taking part in this little experiment!"
-        ),
-        div(
-          "(Have you already taken the survey and just want to see the results?", 
-          actionLink("skip_button", "Click Here"),
-          
-          ")"
-        )
-        
-    ),
     
-    fluidRow(
-      column(12,
+    # Layout
+
+    
+    fixedRow(
+      column(4,
+             div(id = "header",
+                 h1("COVID-19 COMFORT STUDY", style = "font-family: 'Raleway', sans-serif; font-size:30px; color:#c98406; margin-top:-8px;"),
+                 h4(style = "font-size:12px;", "Please take this short survey how the COVID-19 pandemic has impacted your comfort levels about common activities, your behaviors, and your feelings."),
+                 h4(style = "font-size:12px;", "After you submit your answers, you'll how your responses compare to others who have taken the survey!"),
+                    h4(style = "font-size:12px;", "Please note that all answers are required!"),
+                 br(),
+                 h5(style = "font-size:10px; font-style:italic;",
+                   "(Have you already taken the survey and just want to see the results?", 
+                   actionLink("skip_button", "Click Here"),
+                   ")"
+                 )
+                 
+             )
+             ),
+      column(8,
              div(
                id = "form",
                
                # Section 1: comfort
-               h4("Part 1: Are You Comfortable?"),
-               div(strong("Please rate your comfort level for the following:")),
+               div(class = "sectionheader",
+                 "Part 1: Are You Comfortable?"
+               ),
+               div(strong("Please rate your comfort level for the following as a result of the COVID-19 pandemic:")),
                div(class = "questiontext", "Grocery shopping in-store"),
                # div(class = "questiontext", labelMandatory("Grocery shopping in-store")),
                div(class = "rowquestion",
@@ -439,7 +448,7 @@ shinyApp(
                    div(class = "columnlabel", "Very Comfortable")
                ),
                
-               div(class = "questiontext", "Seeing friends/family INDOORS"),
+               div(class = "questiontext", "Seeing friends/family (not in your household) INDOORS"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
                    div(class = "column",
@@ -447,7 +456,7 @@ shinyApp(
                    div(class = "columnlabel", "Very Comfortable")
                ),
                
-               div(class = "questiontext", "Seeing friends/family OUTDOORS"),
+               div(class = "questiontext", "Seeing friends/family (not in your household) OUTDOORS"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
                    div(class = "column",
@@ -455,7 +464,7 @@ shinyApp(
                    div(class = "columnlabel", "Very Comfortable")
                ),
                
-               div(class = "questiontext", "Attending large events (30+ people) that take place partially or fully indoors (weddings, parties, etc.)"),
+               div(class = "questiontext", "Attending large events (30+ people) that take place partially or fully INDOORS (weddings, parties, etc.)"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
                    div(class = "column",
@@ -463,7 +472,7 @@ shinyApp(
                    div(class = "columnlabel", "Very Comfortable")
                ),
                
-               div(class = "questiontext", "Attending large events (30+ people) that take place fully outdoors (weddings, parties, etc.)"),
+               div(class = "questiontext", "Attending large events (30+ people) that take place fully OUTDOORS (weddings, parties, etc.)"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "Very Uncomfortable"),
                    div(class = "column",
@@ -491,67 +500,71 @@ shinyApp(
                
                # Section 2: behavior
                div(class = "spacer"),
-               h4("Part 2: What Have You Done?"),
-               div("When was the last time you did any of the following?"),
+               div(class = "sectionheader",
+                   "Part 2: What Have You Done?"
+               ),
+               div(strong("When was the LAST TIME you did any of the following?")),
                
                div(class = "questiontext", "I have done grocery shopping in-store..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_grocery", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_grocery", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have taken a 3+ hour plane ride..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_plane", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_plane", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have eaten at a restaurant INDOORS..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_restaurant_in", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_restaurant_in", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have eaten at a restaurant OUTDOORS..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_restaurant_out", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_restaurant_out", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have seen family/friends INDOORS..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_friends_in", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_friends_in", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have seen family/friends OUTDOORS..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_friends_out", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_friends_out", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have attended a large event that is partially or fully INDOORS..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_event_in", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_event_in", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                div(class = "questiontext", "I have attended a large event that is partially or fully OUTDOORS..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_event_out", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_event_out", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
-               div(class = "questiontext", "I have recieved elective medical treatments..."),
+               div(class = "questiontext", "I have received elective medical treatments (dental cleanings, check-ups, etc.)..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_medical", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_medical", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
-               div(class = "questiontext", "I have recieved personal services..."),
+               div(class = "questiontext", "I have received personal services (haircuts, manicures, etc.)..."),
                div(class = "rowquestion",
                    div(class = "column",
-                       radioGroupButtons("behavior_personal", NULL, c("in the last month", "in the last quarter", "since February", "since before February"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
+                       radioGroupButtons("behavior_personal", NULL, c("in the last month", "in the last quarter", "since April 1st", "since before April 1st"), checkIcon = list(yes = icon("ok", lib = "glyphicon")))),
                ),
                
                
                # Section 2: behavior
                div(class = "spacer"),
-               h4("Part 3: What's On Your Face?"),
+               div(class = "sectionheader",
+                   "Part 3: What's On Your Face?"
+               ),
                div("Please describe your face masking wearing habits?"),
                
-               div(class = "questiontext", "I wear a face mask any time I am INDOORS"),
+               div(class = "questiontext", "I wear a face mask any time I am INDOORS (excluding when you're at home)"),
                div(class = "rowquestion",
                    div(class = "columnlabel", "I never wear a face mask"),
                    div(class = "column",
@@ -568,8 +581,10 @@ shinyApp(
                
                # Section 4: Feelings about COVID-19
                div(class = "spacer"),
-               h4("Part 4: How Ya Feelin'?"),
-               div("Please rate how much you agree with the following statements."),
+               div(class = "sectionheader",
+                   "Part 4: How Ya Feelin'?"
+               ),
+              div("Please rate how much you agree with the following statements."),
                
                div(class = "questiontext", "I am worried about catching COVID-19"),
                div(class = "rowquestion",
@@ -605,17 +620,21 @@ shinyApp(
                
                # Section 3: About You
                div(class = "spacer"),
-               h4("Part 5: Who Are You?"),
-               div("A couple of demographics questions. NOTE: This data is not shared publicly."),
+              div(class = "sectionheader",
+                  "Part 5: Who Are You?"
+              ),
+               div(strong('A couple of demographics questions. NOTE: This data is not shared publicly.')),
                selectInput("about_age", "How old are you?",
                            c("Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+", "Prefer Not To Say")),
                selectInput("about_gender", "To which gender identity do you most identify?",
                            c("Female", "Male", "Transgender", "Gender Variant / Non-Conforming", "Prefer Not To Say")),
                radioButtons("about_job", "I am a frontline worker.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
-               radioButtons("about_health", "I have a health condition that makes me a high-risk of a serious illness from COVID-19.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
-               
-               
-               
+              radioButtons("about_health", "I have a health condition that makes me a high-risk of a serious illness from COVID-19.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
+              radioButtons("about_covid_had", "I have previously been diagnosed with COVID-19.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
+              radioButtons("about_covid_know", "I know someone who has previously been diagnosed with COVID-19.", c("Yes", "No", "Prefer Not To Say"), inline = TRUE),
+              
+               # submit
+
                actionButton("submit", "Submit", class = "btn-primary"),
                
                shinyjs::hidden(
@@ -631,23 +650,27 @@ shinyApp(
                  id = "thankyou_msg",
                  h3("Thanks for sharing! See how you compare to others who took this survey below!")
                )
+             ),
+             
+             fixedRow(
+               column(12,
+                      uiOutput("adminPanelContainer")
+               )
+             ),
+             fixedRow(
+                 column(12,
+                      div(style = "font-size:10px; font-style:italic; padding-bottom:5px; text-align:right;",
+                          span("Much of this code was taken from "),
+                          a("Dean Attali's Mimic Google Form", href = "https://deanattali.com/2015/06/14/mimicking-google-form-shiny/"),
+                          span("project."),
+                          span("Created by"),
+                          a("Yuri", href = "http://www.twitter.com/yurikim"),
+                          "."
+                      )
+               )
              )
-      )
-    ),
-    fluidRow(
-      column(12,
-             uiOutput("adminPanelContainer")
-      )
-    ),
-    fluidRow(
-      hr(),
-      div( 
-        span("Much of this code was taken from "),
-        a("Dean Attali's Mimic Google Form", href = "https://deanattali.com/2015/06/14/mimicking-google-form-shiny/"),
-        span("project."),
-        br(),
-        span("Created by"),
-        a("Yuri", href = "http://www.twitter.com/yurikim")
+             
+             
       )
     )
   ),
@@ -717,8 +740,10 @@ shinyApp(
     observeEvent(input$submit, {
       output$adminPanelContainer <- renderUI({
         div(
-          id = "adminPanel",
-          h4("Part 1: Are You Comfortable?"),
+          id = "form",
+          div(class = "sectionheader",
+              "Part 1: Are You Comfortable?"
+          ),
           plotOutput("visual_comfort_grocery", height = 310, width = 600)  %>% withSpinner(color="#e88f00"),
           plotOutput("visual_comfort_plane", height = 310, width = "100%"),
           plotOutput("visual_comfort_restaurant_in", height = 310, width = "100%"),
@@ -731,7 +756,9 @@ shinyApp(
           plotOutput("visual_comfort_personal", height = 310, width = "100%"),
           
           div(class = "spacer"),
-          h4("Part 2: What Have You Done?"),
+          div(class = "sectionheader",
+              "Part 2: What Have You Done?"
+          ),
           div("When was the last time you did any of the following?"),
           plotOutput("visual_behavior_grocery", height = 310, width = "100%"),
           plotOutput("visual_behavior_restaurant_in", height = 310, width = "100%"),
@@ -744,20 +771,22 @@ shinyApp(
           plotOutput("visual_behavior_personal", height = 310, width = "100%"),
           
           div(class = "spacer"),
-          h4("Part 3: What's On Your Face?"),
+          div(class = "sectionheader",
+              "Part 3: What's On Your Face?"
+          ),
           div("Please describe your face masking wearing habits."),
           plotOutput("visual_mask_indoor", height = 310, width = "100%"),
           plotOutput("visual_mask_outdoor", height = 310, width = "100%"),
           
           div(class = "spacer"),
-          h4("Part 4: How Ya Feelin'?"),
+          div(class = "sectionheader",
+              "Part 4: How Ya Feelin'?"
+          ),
           div("Please describe your face masking wearing habits."),
           plotOutput("visual_feelings_catch", height = 310, width = "100%"),
           plotOutput("visual_feelings_spread", height = 310, width = "100%"),
           plotOutput("visual_feelings_precaution", height = 310, width = "100%"),
           plotOutput("visual_feelings_severity", height = 310, width = "100%")
-          
-          
         )
       })}
     )
@@ -791,8 +820,10 @@ shinyApp(
     observeEvent(input$skip_button, {
       output$adminPanelContainer <- renderUI({
         div(
-          id = "adminPanel",
-          h4("Part 1: Are You Comfortable?"),
+          id = "form",
+          div(class = "sectionheader",
+              "Part 1: Are You Comfortable?"
+          ),
           plotOutput("nohighlight_visual_comfort_grocery", height = 310, width = "100%")  %>% withSpinner(color="#e88f00"),
           plotOutput("nohighlight_visual_comfort_plane", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_comfort_restaurant_in", height = 310, width = "100%"),
@@ -805,7 +836,9 @@ shinyApp(
           plotOutput("nohighlight_visual_comfort_personal", height = 310, width = "100%"),
 
           div(class = "spacer"),
-          h4("Part 2: What Have You Done?"),
+          div(class = "sectionheader",
+              "Part 2: What Have You Done?"
+          ),
           div("When was the last time you did any of the following?"),
           plotOutput("nohighlight_visual_behavior_grocery", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_behavior_restaurant_in", height = 310, width = "100%"),
@@ -818,13 +851,17 @@ shinyApp(
           plotOutput("nohighlight_visual_behavior_personal", height = 310, width = "100%"),
 
           div(class = "spacer"),
-          h4("Part 3: What's On Your Face?"),
+          div(class = "sectionheader",
+              "Part 3: What's On Your Face?"
+          ),
           div("Please describe your face masking wearing habits."),
           plotOutput("nohighlight_visual_mask_indoor", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_mask_outdoor", height = 310, width = "100%"),
 
           div(class = "spacer"),
-          h4("Part 4: How Ya Feelin'?"),
+          div(class = "sectionheader",
+              "Part 4: How Ya Feelin'?"
+          ),
           div("Please describe your face masking wearing habits."),
           plotOutput("nohighlight_visual_feelings_catch", height = 310, width = "100%"),
           plotOutput("nohighlight_visual_feelings_spread", height = 310, width = "100%"),
@@ -862,12 +899,12 @@ shinyApp(
                                                                     variable_name = "comfort_friends_in",
                                                                     var1_rename =  "1: Very Uncomfortable",
                                                                     var2_rename =  "4: Very Comfortable",
-                                                                    question_text = "Comfort: Seeing friends/family INDOORS"), height = 275, width = 500)
+                                                                    question_text = "Comfort: Seeing friends/family (not in your household) INDOORS"), height = 275, width = 500)
     output$visual_comfort_friends_out <- renderPlot(func_visual_1to4(df_name = merged_data,
                                                                      variable_name = "comfort_friends_out",
                                                                      var1_rename =  "1: Very Uncomfortable",
                                                                      var2_rename =  "4: Very Comfortable",
-                                                                     question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275, width = 500)
+                                                                     question_text = "Comfort: Seeing friends/family (not in your household) OUTDOORS"), height = 275, width = 500)
     output$visual_comfort_event_in <- renderPlot(func_visual_1to4(df_name = merged_data,
                                                                   variable_name = "comfort_event_in",
                                                                   var1_rename =  "1: Very Uncomfortable",
@@ -985,12 +1022,12 @@ shinyApp(
                                                                                             variable_name = "comfort_friends_in",
                                                                                             var1_rename =  "1: Very Uncomfortable",
                                                                                             var2_rename =  "4: Very Comfortable",
-                                                                                            question_text = "Comfort: Seeing friends/family INDOORS"), height = 275, width = 500)
+                                                                                            question_text = "Comfort: Seeing friends/family (not in your household) INDOORS"), height = 275, width = 500)
     output$nohighlight_visual_comfort_friends_out <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
                                                                                              variable_name = "comfort_friends_out",
                                                                                              var1_rename =  "1: Very Uncomfortable",
                                                                                              var2_rename =  "4: Very Comfortable",
-                                                                                             question_text = "Comfort: Seeing friends/family OUTDOORS"), height = 275, width = 500)
+                                                                                             question_text = "Comfort: Seeing friends/family (not in your household) OUTDOORS"), height = 275, width = 500)
     output$nohighlight_visual_comfort_event_in <- renderPlot(func_nohighlight_visual_1to4(df_name = pulled_data,
                                                                                           variable_name = "comfort_event_in",
                                                                                           var1_rename =  "1: Very Uncomfortable",

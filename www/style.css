@@ -1,8 +1,8 @@
 .row {
     display: table;
     table-layout: fixed; /*Optional*/
-    border-spacing: 10px; /*Optional*/
-	padding-left:25px;
+
+
 }
 .columnleft {
     display: table-cell;
@@ -12,7 +12,7 @@
     display: table-cell;
     width:600px;
 }
-.spacer {height: 100px;}
+.spacer {height: 60px;}
 .column {
 	display: table-cell;
 	margin:0px;
@@ -23,8 +23,6 @@
 
 .columnnotcentered {
 	display: table-cell;
-	margin-top:-30px;
-	padding-top:-30px;
 }
 
 
@@ -33,8 +31,7 @@
 
 .spacerleft {
 	display: table-cell;
-	padding:0px;
-	margin-left:20x;
+
 }
 .columnlabel {
 	display: table-cell;
@@ -51,7 +48,6 @@
     table-layout: fixed; /*Optional*/
     border-spacing: 10px; /*Optional*/
 	margin-bottom:25px;
-	margin-left:25px;
 }
 .rowquestionmask {
     display: table;
@@ -59,9 +55,19 @@
     border-spacing: 10px; /*Optional*/
 	margin-bottom:25px;
 	margin-left:25px;
-	margin-top:-45px;
 }
 
-h1.titletext {
-	font-family: 'Raleway', sans-serif;
+
+#form {padding: 5px;}
+
+p:before {
+   content: none;
+}
+
+.sectionheader {
+	font-family: 'Raleway', sans-serif; 
+	font-size: 25px; 
+	color:#435e70;
+	border-top: 1px solid #c98406;
+	margin-bottom:10px;
 }

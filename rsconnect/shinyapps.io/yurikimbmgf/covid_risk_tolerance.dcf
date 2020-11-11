@@ -5,8 +5,8 @@ account: yurikimbmgf
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 3127788
-bundleId: 3805310
+bundleId: 3845482
 url: https://yurikimbmgf.shinyapps.io/covid_risk_tolerance/
-when: 1604182895.33382
+when: 1605060090.84427
 asMultiple: FALSE
 asStatic: FALSE
